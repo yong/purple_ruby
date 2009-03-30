@@ -16,6 +16,7 @@
 #include <libpurple/status.h>
 #include <libpurple/util.h>
 #include <libpurple/whiteboard.h>
+#include <libpurple/network.h>
 
 #include <glib.h>
 #include <stdio.h>
@@ -24,6 +25,9 @@
 #include <errno.h>
 #include <ruby.h>
 #include <stdarg.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #define PURPLE_GLIB_READ_COND  (G_IO_IN | G_IO_HUP | G_IO_ERR)
 #define PURPLE_GLIB_WRITE_COND (G_IO_OUT | G_IO_HUP | G_IO_ERR | G_IO_NVAL)
@@ -192,7 +196,6 @@ static VALUE init(VALUE self, VALUE debug)
 
 static void callback(va_list args, void *proc)
 {
-  printf("$$$$$$$$$$$$$$$ %d\n", proc);
   rb_funcall2(proc, rb_intern("call"), 0, NULL);
 }
 
@@ -201,9 +204,71 @@ static VALUE subscribe(VALUE self, VALUE signal)
   static int handle;
   VALUE proc = rb_block_proc();
 	purple_signal_connect_vargs(purple_connections_get_handle(), RSTRING(signal)->ptr, &handle,
-				PURPLE_CALLBACK(callback), proc);
-  printf("$$$$$$$$$$$$$$$ %d\n", proc);
+				PURPLE_CALLBACK(callback), (gpointer)proc);
   return proc;
+}
+
+static void _server_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
+{
+  /* Check that it is a read condition */
+	if (condition != PURPLE_INPUT_READ)
+		return;
+		
+	struct sockaddr_in their_addr; /* connector's address information */
+	socklen_t sin_size = sizeof(struct sockaddr);
+	int client_socket;
+  if ((client_socket = accept(server_socket, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
+		return;
+	}
+		
+  char message[4096];
+  if (recv(client_socket, message, sizeof(message) - 1, 0) <= 0) {
+    close(client_socket);
+    return;
+  }
+
+  VALUE *args = g_new(VALUE, 1);
+  args[0] = rb_str_new2(message);
+  rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+  
+  close(client_socket);
+}
+
+static VALUE watch_incoming_connections(VALUE self, VALUE port)
+{
+	struct sockaddr_in my_addr;
+  int soc;
+
+	/* Open a listening socket for incoming conversations */
+	if ((soc = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		purple_debug_error("bonjour", "Cannot open socket: %s\n", g_strerror(errno));
+		return Qnil;
+	}
+
+	memset(&my_addr, 0, sizeof(struct sockaddr_in));
+	my_addr.sin_family = AF_INET;
+	my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	my_addr.sin_port = htons(FIX2INT(port));
+	if (bind(soc, (struct sockaddr*)&my_addr, sizeof(struct sockaddr)) != 0)
+	{
+		purple_debug_info("bonjour", "Unable to bind to port %u.(%s)\n", FIX2INT(port), g_strerror(errno));
+		return Qnil;
+	}
+
+	/* Attempt to listen on the bound socket */
+	if (listen(soc, 10) != 0)
+	{
+		purple_debug_error("bonjour", "Cannot listen on socket: %s\n", g_strerror(errno));
+		return Qnil;
+	}
+
+  VALUE proc = rb_block_proc();
+  
+	/* Open a watcher in the socket we have just opened */
+	purple_input_add(soc, PURPLE_INPUT_READ, _server_socket_handler, (gpointer)proc);
+
+	return port;
 }
 
 static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
@@ -230,5 +295,6 @@ void Init_purplegw_ext()
   rb_define_singleton_method(cPurpleGW, "init", init, 1);
   rb_define_singleton_method(cPurpleGW, "subscribe", subscribe, 1);
   rb_define_singleton_method(cPurpleGW, "login", login, 3);
+  rb_define_singleton_method(cPurpleGW, "watch_incoming_connections", watch_incoming_connections, 1);
   rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
 }
