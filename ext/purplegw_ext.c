@@ -103,7 +103,6 @@ static PurpleEventLoopUiOps glib_eventloops =
 
 static VALUE cPurpleGW;
 static VALUE cAccount;
-static VALUE cConversation;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
 static VALUE im_hanlder;
