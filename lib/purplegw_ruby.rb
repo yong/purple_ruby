@@ -60,6 +60,6 @@ class PurpleGW
   end
 end
 
-accounts = [{:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]},
+configs = [{:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]},
             {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]}]
-PurpleGW.new.start accounts
+PurpleGW.new.start configs
