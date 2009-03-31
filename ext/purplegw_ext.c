@@ -102,8 +102,11 @@ static PurpleEventLoopUiOps glib_eventloops =
 };
 
 static VALUE cPurpleGW;
+static VALUE cAccount;
+static VALUE cConversation;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
+static VALUE im_hanlder;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
@@ -115,10 +118,12 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
 		name = who;
 	else
 		name = NULL;
-
-	printf("(%s) %s %s: %s\n", purple_conversation_get_name(conv),
-			purple_utf8_strftime("(%H:%M:%S)", localtime(&mtime)),
-			name, message);
+		
+  VALUE *args = g_new(VALUE, 3);
+  args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
+  args[1] = rb_str_new2(name);
+  args[2] = rb_str_new2(message);
+  rb_funcall2(im_hanlder, rb_intern("call"), 3, args);
 }
 
 static PurpleConversationUiOps conv_uiops = 
@@ -194,18 +199,10 @@ static VALUE init(VALUE self, VALUE debug)
   return Qnil;
 }
 
-static void callback(va_list args, void *proc)
+static VALUE watch_incoming_messages(VALUE self)
 {
-  rb_funcall2(proc, rb_intern("call"), 0, NULL);
-}
-
-static VALUE subscribe(VALUE self, VALUE signal)
-{
-  static int handle;
-  VALUE proc = rb_block_proc();
-	purple_signal_connect_vargs(purple_connections_get_handle(), RSTRING(signal)->ptr, &handle,
-				PURPLE_CALLBACK(callback), (gpointer)proc);
-  return proc;
+  im_hanlder = rb_block_proc();
+  return im_hanlder;
 }
 
 static void _server_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
@@ -221,7 +218,7 @@ static void _server_socket_handler(gpointer data, int server_socket, PurpleInput
 		return;
 	}
 		
-  char message[4096];
+  char message[40960];
   if (recv(client_socket, message, sizeof(message) - 1, 0) <= 0) {
     close(client_socket);
     return;
@@ -252,7 +249,7 @@ static VALUE watch_incoming_connections(VALUE self, VALUE port)
 	my_addr.sin_port = htons(FIX2INT(port));
 	if (bind(soc, (struct sockaddr*)&my_addr, sizeof(struct sockaddr)) != 0)
 	{
-		purple_debug_info("bonjour", "Unable to bind to port %u.(%s)\n", FIX2INT(port), g_strerror(errno));
+		purple_debug_info("bonjour", "Unable to bind to port %d: %s\n", (int)FIX2INT(port), g_strerror(errno));
 		return Qnil;
 	}
 
@@ -293,8 +290,11 @@ void Init_purplegw_ext()
 {
   cPurpleGW = rb_define_class("PurpleGW", rb_cObject);
   rb_define_singleton_method(cPurpleGW, "init", init, 1);
-  rb_define_singleton_method(cPurpleGW, "subscribe", subscribe, 1);
+  rb_define_singleton_method(cPurpleGW, "watch_incoming_messages", watch_incoming_messages, 0);
   rb_define_singleton_method(cPurpleGW, "login", login, 3);
   rb_define_singleton_method(cPurpleGW, "watch_incoming_connections", watch_incoming_connections, 1);
   rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
+  
+  cAccount = rb_define_class_under(cPurpleGW, "Account", rb_cObject);
+  cConversation = rb_define_class_under(cPurpleGW, "Conversation", rb_cObject);
 }

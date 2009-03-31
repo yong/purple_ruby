@@ -4,18 +4,17 @@ class PurpleGW
   def start protocol, username, password
     PurpleGW.init false
     
-    PurpleGW.subscribe('signed-on') do |c| 
-      puts "signed on #{c}"
+    PurpleGW.watch_incoming_messages do |receiver, sender, message| 
+      puts "#{receiver}, #{sender}, #{message}"
     end
-    PurpleGW.login protocol, username, password
+    
     PurpleGW.watch_incoming_connections(9877) do |data|
       puts "recv: #{data}"
     end
     
+    PurpleGW.login protocol, username, password
+    
     PurpleGW.main_loop_run
-    
-    #Ruburple::subscribe(:received_im_msg) do |a,b,c,d,e| puts "rcv im: #{a}, #{b}, #{c}, #{d}, #{e}" end
-    
   end
 end
 
