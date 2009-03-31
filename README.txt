@@ -3,7 +3,7 @@
 Linux (Ubuntu):
 ---------------
 apt-get install libpurple0 libpurple-dev
-gem install yong-purplegw_ruby
+gem install yong-purple_ruby
 
 OSX:
 ----
@@ -23,7 +23,16 @@ sudo make install
 edit your ~/.bash_profile and add this line
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
 
-sudo gem install yong-purplegw_ruby
+sudo gem install yong-purple_ruby
 
+== Usage
+
+Start the daemon and receive IM:
+$ruby examples/purplegw_example.rb prpl-msn user@hotmail.com password prpl-jabber user@gmail.com password
+
+Send im:
+$ irb
+irb(main):001:0> require 'lib/purplegw_ruby'
+irb(main):007:0> PurpleGW.deliver 'prpl-jabber', 'friend@gmail.com', 'hello worlds!'
 
 
