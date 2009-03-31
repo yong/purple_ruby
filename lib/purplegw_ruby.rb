@@ -25,6 +25,7 @@ class PurpleGW
       puts "recv: #{receiver}, #{sender}, #{text}"
     end
     
+    #TODO detect login failure
     PurpleGW.watch_signed_on_event do |acc| 
       puts "signed on: #{acc.username}"
     end
@@ -61,8 +62,10 @@ class PurpleGW
   end
 end
 
-if ARGV.length > 0
-  configs = [{:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]},
-              {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]}]
+if ARGV.length >= 3
+  configs = []
+  configs << {:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]}
+  configs << {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]} if ARGV >= 6
   PurpleGW.new.start configs
 end
+
