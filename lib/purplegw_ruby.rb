@@ -15,8 +15,9 @@ class PurpleGW
     }
     
     #handle incoming im messages
-    PurpleGW.watch_incoming_im do |receiver, sender, message| 
-      puts "recv: #{receiver}, #{sender}, #{message}"
+    PurpleGW.watch_incoming_im do |receiver, sender, message|
+      text = (Hpricot(message)).to_plain_text
+      puts "recv: #{receiver}, #{sender}, #{text}"
     end
     
     PurpleGW.watch_signed_on_event do |acc| 
