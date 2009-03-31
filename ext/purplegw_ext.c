@@ -299,6 +299,12 @@ static VALUE main_loop_run(VALUE self)
   return Qnil;
 }
 
+static VALUE main_loop_stop(VALUE self)
+{
+  g_main_loop_quit(main_loop);
+  return Qnil;
+}
+
 static VALUE send_im(VALUE self, VALUE name, VALUE message)
 {
   PurpleAccount *account;
@@ -328,6 +334,7 @@ void Init_purplegw_ext()
   rb_define_singleton_method(cPurpleGW, "login", login, 3);
   rb_define_singleton_method(cPurpleGW, "watch_incoming_ipc", watch_incoming_ipc, 2);
   rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
+  rb_define_singleton_method(cPurpleGW, "main_loop_stop", main_loop_stop, 0);
   
   cAccount = rb_define_class_under(cPurpleGW, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
