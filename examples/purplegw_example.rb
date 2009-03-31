@@ -74,7 +74,8 @@ end
 if ARGV.length >= 3
   configs = []
   configs << {:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]}
-  configs << {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]} if ARGV >= 6
+  configs << {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]} if ARGV.length >= 6
+  #add more accounts here if you like
   PurpleGWExample.new.start configs
 end
 
