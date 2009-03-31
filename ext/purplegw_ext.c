@@ -276,7 +276,7 @@ static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
   PurpleSavedStatus *status = purple_savedstatus_new(NULL, PURPLE_STATUS_AVAILABLE);
 	purple_savedstatus_activate(status);
 	
-	return Qnil;
+	return Data_Wrap_Struct(cAccount, NULL, NULL, account);
 }
 
 static VALUE main_loop_run(VALUE self)
@@ -284,6 +284,19 @@ static VALUE main_loop_run(VALUE self)
   main_loop = g_main_loop_new(NULL, FALSE);
   g_main_loop_run(main_loop);
   return Qnil;
+}
+
+static VALUE send_im(VALUE self, VALUE name, VALUE message)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  
+  if (purple_account_is_connected(account)) {
+    int i = serv_send_im(purple_account_get_connection(account), RSTRING(name)->ptr, RSTRING(message)->ptr, 0);
+    return INT2FIX(i);
+  } else {
+    return Qnil;
+  }
 }
 
 void Init_purplegw_ext() 
@@ -296,5 +309,5 @@ void Init_purplegw_ext()
   rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
   
   cAccount = rb_define_class_under(cPurpleGW, "Account", rb_cObject);
-  cConversation = rb_define_class_under(cPurpleGW, "Conversation", rb_cObject);
+  rb_define_method(cAccount, "send_im", send_im, 2);
 }

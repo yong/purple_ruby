@@ -8,11 +8,11 @@ class PurpleGW
       puts "#{receiver}, #{sender}, #{message}"
     end
     
-    PurpleGW.watch_incoming_connections(9877) do |data|
-      puts "recv: #{data}"
-    end
+    account = PurpleGW.login(protocol, username, password)
     
-    PurpleGW.login protocol, username, password
+    PurpleGW.watch_incoming_connections(9877) do |data|
+      account.send_im('xue.yong.zhi@gmail.com', data)
+    end
     
     PurpleGW.main_loop_run
   end
