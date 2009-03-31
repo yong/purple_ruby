@@ -107,6 +107,7 @@ static VALUE cConversation;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
 static VALUE im_hanlder;
+static VALUE signed_on_hanlder;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
@@ -199,10 +200,26 @@ static VALUE init(VALUE self, VALUE debug)
   return Qnil;
 }
 
-static VALUE watch_incoming_messages(VALUE self)
+static VALUE watch_incoming_im(VALUE self)
 {
   im_hanlder = rb_block_proc();
   return im_hanlder;
+}
+
+static void signed_on(PurpleConnection* connection)
+{
+  VALUE *args = g_new(VALUE, 1);
+  args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
+  rb_funcall2((VALUE)signed_on_hanlder, rb_intern("call"), 1, args);
+}
+
+static VALUE watch_signed_on_event(VALUE self)
+{
+  signed_on_hanlder = rb_block_proc();
+  int handle;
+	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
+				PURPLE_CALLBACK(signed_on), NULL);
+  return signed_on_hanlder;
 }
 
 static void _server_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
@@ -231,7 +248,7 @@ static void _server_socket_handler(gpointer data, int server_socket, PurpleInput
   close(client_socket);
 }
 
-static VALUE watch_incoming_connections(VALUE self, VALUE port)
+static VALUE watch_incoming_ipc(VALUE self, VALUE port)
 {
 	struct sockaddr_in my_addr;
   int soc;
@@ -299,15 +316,24 @@ static VALUE send_im(VALUE self, VALUE name, VALUE message)
   }
 }
 
+static VALUE username(VALUE self)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  return rb_str_new2(purple_account_get_username(account));
+}
+
 void Init_purplegw_ext() 
 {
   cPurpleGW = rb_define_class("PurpleGW", rb_cObject);
   rb_define_singleton_method(cPurpleGW, "init", init, 1);
-  rb_define_singleton_method(cPurpleGW, "watch_incoming_messages", watch_incoming_messages, 0);
+  rb_define_singleton_method(cPurpleGW, "watch_signed_on_event", watch_signed_on_event, 0);
+  rb_define_singleton_method(cPurpleGW, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleGW, "login", login, 3);
-  rb_define_singleton_method(cPurpleGW, "watch_incoming_connections", watch_incoming_connections, 1);
+  rb_define_singleton_method(cPurpleGW, "watch_incoming_ipc", watch_incoming_ipc, 1);
   rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
   
   cAccount = rb_define_class_under(cPurpleGW, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
+  rb_define_method(cAccount, "username", username, 0);
 }
