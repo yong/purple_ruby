@@ -12,7 +12,7 @@
 
 require 'hpricot'
 require 'socket'
-require File.expand_path(File.join(File.dirname(__FILE__), '../purple_ruby'))
+require File.expand_path(File.join(File.dirname(__FILE__), '../ext/purple_ruby'))
 
 class PurpleGWExample
   SERVER_IP = "127.0.0.1"
