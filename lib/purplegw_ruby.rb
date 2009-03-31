@@ -5,6 +5,9 @@ require 'hpricot'
 require File.expand_path(File.join(File.dirname(__FILE__), 'purplegw_ext'))
 
 class PurpleGW
+  SERVER_IP = "127.0.0.1"
+  SERVER_PORT = '9876'
+
   def start configs
     PurpleGW.init false
     
@@ -27,13 +30,13 @@ class PurpleGW
     #listen a tcp port, parse incoming data and send it out.
     #We assume the incoming data is in the following format:
     #<protocol> <user> <message>
-    PurpleGW.watch_incoming_ipc("127.0.0.1", 9877) do |data|
-      puts "send: #{data}"
+    PurpleGW.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
       first_space = data.index(' ')
       second_space = data.index(' ', first_space + 1)
       protocol = data[0...first_space]
       user = data[(first_space+1)...second_space]
       message = data[(second_space+1)...-1]
+      puts "send: #{protocol}, #{user}, #{message}"
       accounts[protocol].send_im(user, message)
     end
     
