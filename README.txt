@@ -2,10 +2,20 @@
 
 OSX:
 sudo port -d selfupdate
+
 sudo port install gnutls
+		(wait forever....)
 sudo port install nss
-sudo port install pidgin
-gem install yong-purplegw_ruby
+		(wait forever....)
+
+wget http://downloads.sourceforge.net/pidgin/pidgin-2.5.5.tar.bz2
+tar xvjf pidgin-2.5.5.tar.bz2
+cd pidgin-2.5.5
+./configure --disable-gtkui --disable-screensaver --disable-consoleui --disable-sm --disable-perl --disable-tk --disable-tcl --disable-gstreamer --disable-schemas-install --disable-gestures --disable-cap --disable-gevolution --disable-gtkspell --disable-startup-notification --disable-avahi --disable-nm --disable-dbus --disable-meanwhile
+make
+		(wait forever...)
+sudo make install
+sudo gem install yong-purplegw_ruby
 
 Linux (Ubuntu):
 apt-get install libpurple0 libpurple-dev
