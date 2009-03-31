@@ -2,6 +2,7 @@
 #ruby purplegw_ruby.rb prpl-jabber user@gmail.com password prpl-msn user@hotmail.com password
 
 require 'hpricot'
+require 'socket'
 require File.expand_path(File.join(File.dirname(__FILE__), 'purplegw_ext'))
 
 class PurpleGW
@@ -60,6 +61,8 @@ class PurpleGW
   end
 end
 
-configs = [{:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]},
-            {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]}]
-PurpleGW.new.start configs
+if ARGV.length > 0
+  configs = [{:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]},
+              {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]}]
+  PurpleGW.new.start configs
+end
