@@ -10,7 +10,7 @@ class PurpleGW
   SERVER_PORT = 9876
 
   def start configs
-    PurpleGW.init false
+    PurpleGW.init false #use 'true' if you want to see the debug messages
     
     accounts = {}
     configs.each {|config|
