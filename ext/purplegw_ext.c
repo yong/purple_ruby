@@ -111,18 +111,10 @@ static VALUE signed_on_hanlder;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
-{
-	const char *name;
-	if (alias && *alias)
-		name = alias;
-	else if (who && *who)
-		name = who;
-	else
-		name = NULL;
-		
+{	
   VALUE *args = g_new(VALUE, 3);
   args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
-  args[1] = rb_str_new2(name);
+  args[1] = rb_str_new2(who);
   args[2] = rb_str_new2(message);
   rb_funcall2(im_hanlder, rb_intern("call"), 3, args);
 }

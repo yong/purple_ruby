@@ -6,7 +6,7 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'purplegw_ext'))
 
 class PurpleGW
   SERVER_IP = "127.0.0.1"
-  SERVER_PORT = '9876'
+  SERVER_PORT = 9876
 
   def start configs
     PurpleGW.init false
@@ -19,6 +19,7 @@ class PurpleGW
     
     #handle incoming im messages
     PurpleGW.watch_incoming_im do |receiver, sender, message|
+      sender = sender[0...sender.index('/')] if sender.index('/') #discard anything after '/'
       text = (Hpricot(message)).to_plain_text
       puts "recv: #{receiver}, #{sender}, #{text}"
     end
@@ -41,6 +42,7 @@ class PurpleGW
     end
     
     trap("INT") {
+      #TODO ctrl-c can not be deteced until a message is coming
       puts 'Ctrl-C, quit...'
       PurpleGW.main_loop_stop
     }
