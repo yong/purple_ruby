@@ -323,7 +323,7 @@ static VALUE username(VALUE self)
   return rb_str_new2(purple_account_get_username(account));
 }
 
-void Init_purplegw_ext() 
+void Init_purple_ruby() 
 {
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
   rb_define_singleton_method(cPurpleRuby, "init", init, 1);
