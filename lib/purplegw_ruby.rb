@@ -51,7 +51,7 @@ class PurpleGW
     PurpleGW.main_loop_run
   end
   
-  def self.deliver(protocol, message, to_users, opts={})
+  def self.deliver(protocol, to_users, message)
     to_users = [to_users] unless to_users.is_a?(Array)      
     to_users.each do |user|
       t = TCPSocket.new(SERVER_IP, SERVER_PORT)
