@@ -16,10 +16,9 @@ end
 
 task :test => EXT
 
-file EXT => ["ext/extconf.rb", "ext/purplegw_ext.c"] do
+file EXT => ["ext/extconf.rb", "ext/purple_ruby.c"] do
   Dir.chdir "ext" do
     ruby "extconf.rb"
     sh "make"
-    sh "cp purplegw_ext.so ../lib"
   end
 end

@@ -101,7 +101,7 @@ static PurpleEventLoopUiOps glib_eventloops =
 	NULL
 };
 
-static VALUE cPurpleGW;
+static VALUE cPurpleRuby;
 static VALUE cAccount;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
@@ -325,16 +325,16 @@ static VALUE username(VALUE self)
 
 void Init_purplegw_ext() 
 {
-  cPurpleGW = rb_define_class("PurpleGW", rb_cObject);
-  rb_define_singleton_method(cPurpleGW, "init", init, 1);
-  rb_define_singleton_method(cPurpleGW, "watch_signed_on_event", watch_signed_on_event, 0);
-  rb_define_singleton_method(cPurpleGW, "watch_incoming_im", watch_incoming_im, 0);
-  rb_define_singleton_method(cPurpleGW, "login", login, 3);
-  rb_define_singleton_method(cPurpleGW, "watch_incoming_ipc", watch_incoming_ipc, 2);
-  rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
-  rb_define_singleton_method(cPurpleGW, "main_loop_stop", main_loop_stop, 0);
+  cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
+  rb_define_singleton_method(cPurpleRuby, "init", init, 1);
+  rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
+  rb_define_singleton_method(cPurpleRuby, "login", login, 3);
+  rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
+  rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);
+  rb_define_singleton_method(cPurpleRuby, "main_loop_stop", main_loop_stop, 0);
   
-  cAccount = rb_define_class_under(cPurpleGW, "Account", rb_cObject);
+  cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
   rb_define_method(cAccount, "username", username, 0);
 }
