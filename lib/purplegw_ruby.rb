@@ -1,10 +1,18 @@
+#Example Usage:
+#ruby purplegw_ruby.rb prpl-jabber user@gmail.com password prpl-msn user@hotmail.com password
+
+require 'hpricot'
 require File.expand_path(File.join(File.dirname(__FILE__), 'purplegw_ext'))
 
 class PurpleGW
-  def start protocol, username, password, friend
+  def start configs
     PurpleGW.init false
     
-    account = PurpleGW.login(protocol, username, password)
+    accounts = {}
+    configs.each {|config|
+      account = PurpleGW.login(config[:protocol], config[:username], config[:password])
+      accounts[config[:protocol]] = account
+    }
     
     #handle incoming im messages
     PurpleGW.watch_incoming_im do |receiver, sender, message| 
@@ -15,15 +23,37 @@ class PurpleGW
       puts "signed on: #{acc.username}"
     end
     
-    #listen a tcp port, parse incoming data and send it out
+    #listen a tcp port, parse incoming data and send it out.
+    #We assume the incoming data is in the following format:
+    #<protocol> <user> <message>
     PurpleGW.watch_incoming_ipc("127.0.0.1", 9877) do |data|
       puts "send: #{data}"
-      account.send_im(friend, data)
+      first_space = data.index(' ')
+      second_space = data.index(' ', first_space + 1)
+      protocol = data[0...first_space]
+      user = data[(first_space+1)...second_space]
+      message = data[(second_space+1)...-1]
+      accounts[protocol].send_im(user, message)
     end
+    
+    trap("INT") {
+      puts 'Ctrl-C, quit...'
+      PurpleGW.main_loop_stop
+    }
     
     PurpleGW.main_loop_run
   end
+  
+  def self.deliver(protocol, message, to_users, opts={})
+    to_users = [to_users] unless to_users.is_a?(Array)      
+    to_users.each do |user|
+      t = TCPSocket.new(SERVER_IP, SERVER_PORT)
+      t.print "#{protocol} #{user} #{message}\n"
+      t.close
+    end
+  end
 end
 
-#prpl-jabber
-PurpleGW.new.start ARGV[0], ARGV[1], ARGV[2], ARGV[3]
+accounts = [{:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]},
+            {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]}]
+PurpleGW.new.start accounts
