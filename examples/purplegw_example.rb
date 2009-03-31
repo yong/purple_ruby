@@ -1,39 +1,48 @@
+#
 #Example Usage:
-#ruby purplegw_ruby.rb prpl-jabber user@gmail.com password prpl-msn user@hotmail.com password
+#
+#Start the daemon and receive IM:
+#$ruby examples/purplegw_example.rb prpl-msn user@hotmail.com password prpl-jabber user@gmail.com password
+#
+#Send im:
+#$ irb
+#irb(main):001:0> require 'lib/purplegw_ruby'
+#irb(main):007:0> PurpleGW.deliver 'prpl-jabber', 'friend@gmail.com', 'hello worlds!'
+#
 
 require 'hpricot'
 require 'socket'
-require File.expand_path(File.join(File.dirname(__FILE__), 'purplegw_ext'))
+require File.expand_path(File.join(File.dirname(__FILE__), '../purple_ruby'))
 
-class PurpleGW
+class PurpleGWExample
   SERVER_IP = "127.0.0.1"
   SERVER_PORT = 9876
 
   def start configs
-    PurpleGW.init false #use 'true' if you want to see the debug messages
+    PurpleRuby.init false #use 'true' if you want to see the debug messages
     
     accounts = {}
     configs.each {|config|
-      account = PurpleGW.login(config[:protocol], config[:username], config[:password])
+      account = PurpleRuby.login(config[:protocol], config[:username], config[:password])
       accounts[config[:protocol]] = account
     }
     
     #handle incoming im messages
-    PurpleGW.watch_incoming_im do |receiver, sender, message|
+    PurpleRuby.watch_incoming_im do |receiver, sender, message|
       sender = sender[0...sender.index('/')] if sender.index('/') #discard anything after '/'
       text = (Hpricot(message)).to_plain_text
       puts "recv: #{receiver}, #{sender}, #{text}"
     end
     
     #TODO detect login failure
-    PurpleGW.watch_signed_on_event do |acc| 
+    PurpleRuby.watch_signed_on_event do |acc| 
       puts "signed on: #{acc.username}"
     end
     
     #listen a tcp port, parse incoming data and send it out.
     #We assume the incoming data is in the following format:
     #<protocol> <user> <message>
-    PurpleGW.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
+    PurpleRuby.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
       first_space = data.index(' ')
       second_space = data.index(' ', first_space + 1)
       protocol = data[0...first_space]
@@ -46,10 +55,10 @@ class PurpleGW
     trap("INT") {
       #TODO ctrl-c can not be deteced until a message is coming
       puts 'Ctrl-C, quit...'
-      PurpleGW.main_loop_stop
+      PurpleRuby.main_loop_stop
     }
     
-    PurpleGW.main_loop_run
+    PurpleRuby.main_loop_run
   end
   
   def self.deliver(protocol, to_users, message)
@@ -66,6 +75,6 @@ if ARGV.length >= 3
   configs = []
   configs << {:protocol => ARGV[0], :username => ARGV[1], :password => ARGV[2]}
   configs << {:protocol => ARGV[3], :username => ARGV[4], :password => ARGV[5]} if ARGV >= 6
-  PurpleGW.new.start configs
+  PurpleGWExample.new.start configs
 end
 

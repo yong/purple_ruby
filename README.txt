@@ -1,3 +1,11 @@
+== OVERVIEW
+
+purple_ruby is a ruby gem to write servers that send and recive IM messages. It uses <a href="http://developer.pidgin.im/wiki/WhatIsLibpurple">libpurple</a> and therforce supports all protocols that Pidgin/Adium supports (MSN/Gtalk/Yahoo/AIM/ICQ etc).
+
+Please check examples/purplegw_example.rb for details. Bascially you just tell it what to do when an IM was received, and there is an embedded tcp 'proxy' which allows you send IM messages.
+
+Why not "ruburple"? I have used <a href="rubyforge.org/projects/ruburple">ruburple</a>, but found it blocks a lot. libpurple need to run its own event loop and it interferes with ruby's green thread model. Ruburple's author have done lots of hard work to <a href="http://rubyforge.org/pipermail/ruburple-development/2007-June/000005.html">workaround the problem</a>, but it does not work well.
+
 == INSTALLATION
 
 Linux (Ubuntu):
@@ -25,14 +33,6 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
 
 sudo gem install yong-purple_ruby
 
-== Usage
 
-Start the daemon and receive IM:
-$ruby examples/purplegw_example.rb prpl-msn user@hotmail.com password prpl-jabber user@gmail.com password
-
-Send im:
-$ irb
-irb(main):001:0> require 'lib/purplegw_ruby'
-irb(main):007:0> PurpleGW.deliver 'prpl-jabber', 'friend@gmail.com', 'hello worlds!'
 
 
