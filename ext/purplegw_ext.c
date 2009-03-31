@@ -180,11 +180,7 @@ static VALUE init(VALUE self, VALUE debug)
   purple_eventloop_set_ui_ops(&glib_eventloops);
   
   if (!purple_core_init(UI_ID)) {
-		/* Initializing the core failed. Terminate. */
-		fprintf(stderr,
-				"libpurple initialization failed. Dumping core.\n"
-				"Please report this!\n");
-		abort();
+		rb_raise(rb_eRuntimeError, "libpurple initialization failed");
 	}
 
   /* Create and load the buddylist. */
@@ -256,7 +252,7 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE port)
 	/* Open a listening socket for incoming conversations */
 	if ((soc = socket(PF_INET, SOCK_STREAM, 0)) < 0)
 	{
-		purple_debug_error("bonjour", "Cannot open socket: %s\n", g_strerror(errno));
+		rb_raise(rb_eRuntimeError, "Cannot open socket: %s\n", g_strerror(errno));
 		return Qnil;
 	}
 
@@ -266,14 +262,14 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE port)
 	my_addr.sin_port = htons(FIX2INT(port));
 	if (bind(soc, (struct sockaddr*)&my_addr, sizeof(struct sockaddr)) != 0)
 	{
-		purple_debug_info("bonjour", "Unable to bind to port %d: %s\n", (int)FIX2INT(port), g_strerror(errno));
+		rb_raise(rb_eRuntimeError, "Unable to bind to port %d: %s\n", (int)FIX2INT(port), g_strerror(errno));
 		return Qnil;
 	}
 
 	/* Attempt to listen on the bound socket */
 	if (listen(soc, 10) != 0)
 	{
-		purple_debug_error("bonjour", "Cannot listen on socket: %s\n", g_strerror(errno));
+		rb_raise(rb_eRuntimeError, "Cannot listen on socket: %s\n", g_strerror(errno));
 		return Qnil;
 	}
 
