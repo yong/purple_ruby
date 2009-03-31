@@ -222,18 +222,25 @@ static void _server_socket_handler(gpointer data, int server_socket, PurpleInput
   if ((client_socket = accept(server_socket, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
 		return;
 	}
-		
-  char message[40960];
-  if (recv(client_socket, message, sizeof(message) - 1, 0) <= 0) {
-    close(client_socket);
-    return;
-  }
 
-  VALUE *args = g_new(VALUE, 1);
-  args[0] = rb_str_new2(message);
-  rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+  char message[40960] = {0};
+  int n = 0;
+  int i = 0;
+  /* keep reading until the client shutdown connection*/
+  while ((i = recv(client_socket, message + n, sizeof(message) - n - 1, 0)) > 0) {
+    n += i;
+    if (n >= sizeof(message) - 1) {
+      break;
+    }
+  }
   
   close(client_socket);
+
+  if (n > 0) {
+    VALUE *args = g_new(VALUE, 1);
+    args[0] = rb_str_new2(message);
+    rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+  }
 }
 
 static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
