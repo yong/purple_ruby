@@ -244,7 +244,7 @@ static void _server_socket_handler(gpointer data, int server_socket, PurpleInput
   close(client_socket);
 }
 
-static VALUE watch_incoming_ipc(VALUE self, VALUE port)
+static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 {
 	struct sockaddr_in my_addr;
   int soc;
@@ -258,7 +258,7 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE port)
 
 	memset(&my_addr, 0, sizeof(struct sockaddr_in));
 	my_addr.sin_family = AF_INET;
-	my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	my_addr.sin_addr.s_addr = inet_addr(RSTRING(serverip)->ptr);
 	my_addr.sin_port = htons(FIX2INT(port));
 	if (bind(soc, (struct sockaddr*)&my_addr, sizeof(struct sockaddr)) != 0)
 	{
@@ -326,7 +326,7 @@ void Init_purplegw_ext()
   rb_define_singleton_method(cPurpleGW, "watch_signed_on_event", watch_signed_on_event, 0);
   rb_define_singleton_method(cPurpleGW, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleGW, "login", login, 3);
-  rb_define_singleton_method(cPurpleGW, "watch_incoming_ipc", watch_incoming_ipc, 1);
+  rb_define_singleton_method(cPurpleGW, "watch_incoming_ipc", watch_incoming_ipc, 2);
   rb_define_singleton_method(cPurpleGW, "main_loop_run", main_loop_run, 0);
   
   cAccount = rb_define_class_under(cPurpleGW, "Account", rb_cObject);
