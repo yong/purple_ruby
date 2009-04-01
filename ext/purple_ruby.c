@@ -342,6 +342,14 @@ static VALUE list_protocols(VALUE self)
   return array;
 }
 
+static VALUE add_buddy(VALUE self, VALUE buddy)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  purple_buddy_new(account, RSTRING(buddy)->ptr, RSTRING(buddy)->ptr);
+  return Qtrue;
+}
+
 void Init_purple_ruby() 
 {
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
@@ -357,4 +365,5 @@ void Init_purple_ruby()
   cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
   rb_define_method(cAccount, "username", username, 0);
+  rb_define_method(cAccount, "add_buddy", add_buddy, 1);
 }
