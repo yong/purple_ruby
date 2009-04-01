@@ -346,7 +346,8 @@ static VALUE add_buddy(VALUE self, VALUE buddy)
 {
   PurpleAccount *account;
   Data_Get_Struct(self, PurpleAccount, account);
-  purple_buddy_new(account, RSTRING(buddy)->ptr, RSTRING(buddy)->ptr);
+  PurpleBuddy* pb = purple_buddy_new(account, RSTRING(buddy)->ptr, RSTRING(buddy)->ptr);
+  purple_account_add_buddy(account, pb);
   return Qtrue;
 }
 
