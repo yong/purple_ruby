@@ -21,6 +21,8 @@ class PurpleGWExample
   def start configs
     PurpleRuby.init false #use 'true' if you want to see the debug messages
     
+    puts "Available protocols:", PurpleRuby.list_protocols
+    
     accounts = {}
     configs.each {|config|
       account = PurpleRuby.login(config[:protocol], config[:username], config[:password])

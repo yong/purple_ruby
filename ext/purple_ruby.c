@@ -323,10 +323,60 @@ static VALUE username(VALUE self)
   return rb_str_new2(purple_account_get_username(account));
 }
 
+static VALUE list_protocols(VALUE self)
+{
+  VALUE array = rb_ary_new();
+  
+  GList *iter = purple_plugins_get_protocols();
+  int i;
+	for (i = 0; iter; iter = iter->next) {
+		PurplePlugin *plugin = iter->data;
+		PurplePluginInfo *info = plugin->info;
+		if (info && info->name) {
+		  char s[256];
+			snprintf(s, sizeof(s) -1, "%s %s", info->id, info->name);
+			rb_ary_push(array, rb_str_new2(s));
+		}
+	}
+  
+  return array;
+}
+
+static VALUE add_buddy(VALUE self, VALUE buddy)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  
+  char* group = _("Buddies");
+  PurpleGroup* grp = purple_find_group(group);
+	if (!grp)
+	{
+		grp = purple_group_new(group);
+		purple_blist_add_group(grp, NULL);
+	}
+	
+	PurpleBuddy* pb = purple_buddy_new(account, RSTRING(buddy)->ptr, NULL);
+  purple_blist_add_buddy(pb, NULL, grp, NULL);
+  purple_account_add_buddy(account, pb);
+  return Qtrue;
+}
+
+static VALUE has_buddy(VALUE self, VALUE buddy)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  if (purple_find_buddy(account, RSTRING(buddy)->ptr) != NULL) {
+    return Qtrue;
+  } else {
+    return Qfalse;
+  }
+}
+
 void Init_purple_ruby() 
 {
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
   rb_define_singleton_method(cPurpleRuby, "init", init, 1);
+  rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
@@ -337,4 +387,6 @@ void Init_purple_ruby()
   cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
   rb_define_method(cAccount, "username", username, 0);
+  rb_define_method(cAccount, "add_buddy", add_buddy, 1);
+  rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
 }
