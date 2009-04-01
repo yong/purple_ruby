@@ -351,6 +351,17 @@ static VALUE add_buddy(VALUE self, VALUE buddy)
   return Qtrue;
 }
 
+static VALUE has_buddy(VALUE self, VALUE buddy)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  if (purple_find_buddy(account, RSTRING(buddy)->ptr) != NULL) {
+    return Qtrue;
+  } else {
+    return Qfalse;
+  }
+}
+
 void Init_purple_ruby() 
 {
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
@@ -367,4 +378,5 @@ void Init_purple_ruby()
   rb_define_method(cAccount, "send_im", send_im, 2);
   rb_define_method(cAccount, "username", username, 0);
   rb_define_method(cAccount, "add_buddy", add_buddy, 1);
+  rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
 }
