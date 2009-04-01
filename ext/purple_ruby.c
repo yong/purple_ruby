@@ -346,8 +346,17 @@ static VALUE add_buddy(VALUE self, VALUE buddy)
 {
   PurpleAccount *account;
   Data_Get_Struct(self, PurpleAccount, account);
-  PurpleBuddy* pb = purple_buddy_new(account, RSTRING(buddy)->ptr, NULL);
-  purple_blist_add_buddy(buddy, pb, NULL, NULL);
+  
+  char* group = _("Buddies");
+  PurpleGroup* grp = purple_find_group(group);
+	if (!grp)
+	{
+		grp = purple_group_new(group);
+		purple_blist_add_group(grp, NULL);
+	}
+	
+	PurpleBuddy* pb = purple_buddy_new(account, RSTRING(buddy)->ptr, NULL);
+  purple_blist_add_buddy(pb, NULL, grp, NULL);
   purple_account_add_buddy(account, pb);
   return Qtrue;
 }
