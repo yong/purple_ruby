@@ -48,11 +48,7 @@ class PurpleGWExample
     #We assume the incoming data is in the following format:
     #<protocol> <user> <message>
     PurpleRuby.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
-      first_space = data.index(' ')
-      second_space = data.index(' ', first_space + 1)
-      protocol = data[0...first_space]
-      user = data[(first_space+1)...second_space]
-      message = data[(second_space+1)...-1]
+      protocol, user, message = data.split(",").collect{|x| x.chomp.strip!}
       puts "send: #{protocol}, #{user}, #{message}"
       accounts[protocol].send_im(user, message)
     end
