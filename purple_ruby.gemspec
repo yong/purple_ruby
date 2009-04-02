@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["yong"]
   s.date = %q{2009-04-01}
-  s.description = %q{ruby IM gateway based on libpurple}
+  s.description = %q{A ruby gem to write server that sends and recives IM messages}
   s.email = %q{yong@intridea.com}
   s.extensions = ["ext/extconf.rb"]
   s.extra_rdoc_files = ["Manifest.txt", "History.txt", "README.txt"]
@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["ext"]
   s.rubyforge_project = %q{purplegw_ruby}
   s.rubygems_version = %q{1.3.1}
-  s.summary = %q{ruby IM gateway based on libpurple}
+  s.summary = %q{A ruby gem to write server that sends and recives IM messages}
 
   if s.respond_to? :specification_version then
     current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
