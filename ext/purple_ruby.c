@@ -107,6 +107,7 @@ static VALUE im_handler = Qnil;
 static VALUE signed_on_handler;
 static VALUE connection_error_handler;
 static VALUE notify_message_handler = Qnil;
+static VALUE request_handler = Qnil;
 static GHashTable* hash_table;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
@@ -160,6 +161,47 @@ static void* notify_message(PurpleNotifyMsgType type,
   
   return NULL;
 }
+
+static void* request_action(const char *title, const char *primary, const char *secondary,
+                            int default_action,
+                            PurpleAccount *account, 
+                            const char *who, 
+                            PurpleConversation *conv,
+                            void *user_data, 
+                            size_t action_count, 
+                            va_list actions)
+{
+  if (request_handler != Qnil) {
+	  VALUE *args = g_new(VALUE, 4);
+    args[0] = INT2FIX(title);
+    args[1] = rb_str_new2(primary);
+    args[2] = rb_str_new2(secondary);
+    args[3] = rb_str_new2(who);
+    VALUE v = rb_funcall2(notify_message_handler, rb_intern("call"), 4, args);
+	  
+	  if (v != Qnil && v != Qfalse) {
+	    GCallback ok_cb = va_arg(actions, GCallback);
+      ((PurpleRequestActionCb)ok_cb)(user_data, default_action);
+    }
+  }
+  
+  return NULL;
+}
+
+static PurpleRequestUiOps request_ops =
+{
+	NULL,           /*request_input*/
+	NULL,           /*request_choice*/
+	request_action, /*request_action*/
+	NULL,           /*request_fields*/
+	NULL,           /*request_file*/
+	NULL,           /*close_request*/
+	NULL,           /*request_folder*/
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
 
 static PurpleNotifyUiOps notify_ops =
 {
@@ -244,6 +286,13 @@ static VALUE watch_notify_message(VALUE self)
   purple_notify_set_ui_ops(&notify_ops);
   notify_message_handler = rb_block_proc();
   return notify_message_handler;
+}
+
+static VALUE watch_request(VALUE self)
+{
+  purple_request_set_ui_ops(&request_ops);
+  request_handler = rb_block_proc();
+  return request_handler;
 }
 
 static void signed_on(PurpleConnection* connection)
@@ -469,6 +518,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_notify_message", watch_notify_message, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_request", watch_request, 0);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);

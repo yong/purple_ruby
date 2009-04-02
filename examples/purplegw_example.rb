@@ -48,6 +48,11 @@ class PurpleGWExample
       puts "notify: #{type} #{title} #{primary} #{secondary}"
     end
     
+    PurpleRuby.watch_request do |title, primary, secondary, who|
+      puts "request: #{title} #{primary} #{secondary} #{who}"
+      true #return 'true' to accept an request, return 'false' to ignore it
+    end
+    
     #listen a tcp port, parse incoming data and send it out.
     #We assume the incoming data is in the following format:
     #<protocol> <user> <message>
