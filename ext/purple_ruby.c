@@ -164,6 +164,8 @@ static PurpleCoreUiOps core_uiops =
 
 static VALUE init(VALUE self, VALUE debug)
 {
+  signal(SIGPIPE, SIG_IGN);
+  
   hash_table = g_hash_table_new(NULL, NULL);
 
   purple_debug_set_enabled((debug == Qnil || debug == Qfalse) ? FALSE : TRUE);
