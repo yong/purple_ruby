@@ -1,0 +1,7 @@
+ext/extconf.rb
+ext/purple_ruby.c
+examples/purplegw_example.rb
+Manifest.txt
+History.txt
+README.txt
+Rakefile
