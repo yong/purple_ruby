@@ -36,9 +36,12 @@ class PurpleGWExample
       puts "recv: #{receiver}, #{sender}, #{text}"
     end
     
-    #TODO detect login failure
     PurpleRuby.watch_signed_on_event do |acc| 
       puts "signed on: #{acc.username}"
+    end
+    
+    PurpleRuby.watch_connection_error do |acc| 
+      raise "connection_error: #{acc.username}"
     end
     
     #listen a tcp port, parse incoming data and send it out.
@@ -53,13 +56,7 @@ class PurpleGWExample
       puts "send: #{protocol}, #{user}, #{message}"
       accounts[protocol].send_im(user, message)
     end
-    
-    trap("INT") {
-      #TODO ctrl-c can not be deteced until a message is coming
-      puts 'Ctrl-C, quit...'
-      PurpleRuby.main_loop_stop
-    }
-    
+        
     PurpleRuby.main_loop_run
   end
   

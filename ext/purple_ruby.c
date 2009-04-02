@@ -18,16 +18,14 @@
 #include <libpurple/whiteboard.h>
 #include <libpurple/network.h>
 
-#include <glib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
 #include <ruby.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #define PURPLE_GLIB_READ_COND  (G_IO_IN | G_IO_HUP | G_IO_ERR)
 #define PURPLE_GLIB_WRITE_COND (G_IO_OUT | G_IO_HUP | G_IO_ERR | G_IO_NVAL)
@@ -105,8 +103,10 @@ static VALUE cPurpleRuby;
 static VALUE cAccount;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
-static VALUE im_hanlder;
-static VALUE signed_on_hanlder;
+static VALUE im_handler;
+static VALUE signed_on_handler;
+static VALUE connection_error_handler;
+static GHashTable* hash_table;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
@@ -115,7 +115,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
   args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
   args[1] = rb_str_new2(who);
   args[2] = rb_str_new2(message);
-  rb_funcall2(im_hanlder, rb_intern("call"), 3, args);
+  rb_funcall2(im_handler, rb_intern("call"), 3, args);
 }
 
 static PurpleConversationUiOps conv_uiops = 
@@ -164,8 +164,25 @@ static PurpleCoreUiOps core_uiops =
 	NULL
 };
 
+//I have tried to detect Ctrl-C using ruby's trap method,
+//but it does not work as expected: it can not detect Ctrl-C
+//until a network event occurs
+static void sighandler(int sig)
+{
+  switch (sig) {
+  case SIGINT:
+		g_main_loop_quit(main_loop);
+		break;
+	}
+}
+
 static VALUE init(VALUE self, VALUE debug)
 {
+  signal(SIGPIPE, SIG_IGN);
+  signal(SIGINT, sighandler);
+  
+  hash_table = g_hash_table_new(NULL, NULL);
+
   purple_debug_set_enabled((debug == Qnil || debug == Qfalse) ? FALSE : TRUE);
   purple_core_set_ui_ops(&core_uiops);
   purple_eventloop_set_ui_ops(&glib_eventloops);
@@ -189,27 +206,69 @@ static VALUE init(VALUE self, VALUE debug)
 
 static VALUE watch_incoming_im(VALUE self)
 {
-  im_hanlder = rb_block_proc();
-  return im_hanlder;
+  im_handler = rb_block_proc();
+  return im_handler;
 }
 
 static void signed_on(PurpleConnection* connection)
 {
   VALUE *args = g_new(VALUE, 1);
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  rb_funcall2((VALUE)signed_on_hanlder, rb_intern("call"), 1, args);
+  rb_funcall2((VALUE)signed_on_handler, rb_intern("call"), 1, args);
+}
+
+static void connection_error(PurpleConnection* connection)
+{
+  VALUE *args = g_new(VALUE, 1);
+  args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
+  rb_funcall2((VALUE)connection_error_handler, rb_intern("call"), 1, args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
 {
-  signed_on_hanlder = rb_block_proc();
+  signed_on_handler = rb_block_proc();
   int handle;
 	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
 				PURPLE_CALLBACK(signed_on), NULL);
-  return signed_on_hanlder;
+  return signed_on_handler;
 }
 
-static void _server_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
+static VALUE watch_connection_error(VALUE self)
+{
+  connection_error_handler = rb_block_proc();
+  int handle;
+	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
+				PURPLE_CALLBACK(connection_error), NULL);
+  return connection_error_handler;
+}
+
+static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition condition)
+{
+  char message[4096] = {0};
+  int i = recv(socket, message, sizeof(message) - 1, 0);
+  if (i > 0) {
+    //printf("recv %d %d\n", socket, i);
+    
+    VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
+    if (NULL == str) rb_raise(rb_eRuntimeError, "can not find socket: %d", socket);
+    rb_str_append(str, rb_str_new2(message));
+  } else {
+    //printf("closed %d %d %s\n", socket, i, g_strerror(errno));
+    
+    VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
+    if (NULL == str) return;
+    
+    close(socket);
+    purple_input_remove(socket);
+    g_hash_table_remove(hash_table, (gpointer)socket);
+    
+    VALUE *args = g_new(VALUE, 1);
+    args[0] = str;
+    rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+  }
+}
+
+static void _accept_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
 {
   /* Check that it is a read condition */
 	if (condition != PURPLE_INPUT_READ)
@@ -221,25 +280,18 @@ static void _server_socket_handler(gpointer data, int server_socket, PurpleInput
   if ((client_socket = accept(server_socket, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
 		return;
 	}
+	
+	int flags = fcntl(client_socket, F_GETFL);
+	fcntl(client_socket, F_SETFL, flags | O_NONBLOCK);
+#ifndef _WIN32
+	fcntl(client_socket, F_SETFD, FD_CLOEXEC);
+#endif
 
-  char message[40960] = {0};
-  int n = 0;
-  int i = 0;
-  /* keep reading until the client shutdown connection*/
-  while ((i = recv(client_socket, message + n, sizeof(message) - n - 1, 0)) > 0) {
-    n += i;
-    if (n >= sizeof(message) - 1) {
-      break;
-    }
-  }
-  
-  close(client_socket);
-
-  if (n > 0) {
-    VALUE *args = g_new(VALUE, 1);
-    args[0] = rb_str_new2(message);
-    rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
-  }
+  //printf("new connection: %d\n", client_socket);
+	
+	g_hash_table_insert(hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
+	
+	purple_input_add(client_socket, PURPLE_INPUT_READ, _read_socket_handler, data);
 }
 
 static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
@@ -274,8 +326,8 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
   VALUE proc = rb_block_proc();
   
 	/* Open a watcher in the socket we have just opened */
-	purple_input_add(soc, PURPLE_INPUT_READ, _server_socket_handler, (gpointer)proc);
-
+	purple_input_add(soc, PURPLE_INPUT_READ, _accept_socket_handler, (gpointer)proc);
+	
 	return port;
 }
 
@@ -378,6 +430,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "init", init, 1);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
