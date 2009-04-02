@@ -60,7 +60,7 @@ class PurpleGWExample
     to_users = [to_users] unless to_users.is_a?(Array)      
     to_users.each do |user|
       t = TCPSocket.new(SERVER_IP, SERVER_PORT)
-      t.print "#{protocol} #{user} #{message}\n"
+      t.print "#{protocol},#{user},#{message}\n"
       t.close
     end
   end
