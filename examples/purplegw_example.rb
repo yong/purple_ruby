@@ -36,9 +36,12 @@ class PurpleGWExample
       puts "recv: #{receiver}, #{sender}, #{text}"
     end
     
-    #TODO detect login failure
     PurpleRuby.watch_signed_on_event do |acc| 
       puts "signed on: #{acc.username}"
+    end
+    
+    PurpleRuby.watch_connection_error do |acc| 
+      raise "connection_error: #{acc.username}"
     end
     
     #listen a tcp port, parse incoming data and send it out.

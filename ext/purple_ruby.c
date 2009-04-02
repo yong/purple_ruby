@@ -103,8 +103,9 @@ static VALUE cPurpleRuby;
 static VALUE cAccount;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
-static VALUE im_hanlder;
-static VALUE signed_on_hanlder;
+static VALUE im_handler;
+static VALUE signed_on_handler;
+static VALUE connection_error_handler;
 static GHashTable* hash_table;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
@@ -114,7 +115,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
   args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
   args[1] = rb_str_new2(who);
   args[2] = rb_str_new2(message);
-  rb_funcall2(im_hanlder, rb_intern("call"), 3, args);
+  rb_funcall2(im_handler, rb_intern("call"), 3, args);
 }
 
 static PurpleConversationUiOps conv_uiops = 
@@ -163,8 +164,10 @@ static PurpleCoreUiOps core_uiops =
 	NULL
 };
 
-static void
-sighandler(int sig)
+//I have tried to detect Ctrl-C using ruby's trap method,
+//but it does not work as expected: it can not detect Ctrl-C
+//until a network event occurs
+static void sighandler(int sig)
 {
   switch (sig) {
   case SIGINT:
@@ -172,7 +175,6 @@ sighandler(int sig)
 		break;
 	}
 }
-
 
 static VALUE init(VALUE self, VALUE debug)
 {
@@ -204,24 +206,40 @@ static VALUE init(VALUE self, VALUE debug)
 
 static VALUE watch_incoming_im(VALUE self)
 {
-  im_hanlder = rb_block_proc();
-  return im_hanlder;
+  im_handler = rb_block_proc();
+  return im_handler;
 }
 
 static void signed_on(PurpleConnection* connection)
 {
   VALUE *args = g_new(VALUE, 1);
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  rb_funcall2((VALUE)signed_on_hanlder, rb_intern("call"), 1, args);
+  rb_funcall2((VALUE)signed_on_handler, rb_intern("call"), 1, args);
+}
+
+static void connection_error(PurpleConnection* connection)
+{
+  VALUE *args = g_new(VALUE, 1);
+  args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
+  rb_funcall2((VALUE)connection_error_handler, rb_intern("call"), 1, args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
 {
-  signed_on_hanlder = rb_block_proc();
+  signed_on_handler = rb_block_proc();
   int handle;
 	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
 				PURPLE_CALLBACK(signed_on), NULL);
-  return signed_on_hanlder;
+  return signed_on_handler;
+}
+
+static VALUE watch_connection_error(VALUE self)
+{
+  connection_error_handler = rb_block_proc();
+  int handle;
+	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
+				PURPLE_CALLBACK(connection_error), NULL);
+  return connection_error_handler;
 }
 
 static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition condition)
@@ -412,6 +430,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "init", init, 1);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
