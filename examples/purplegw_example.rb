@@ -55,7 +55,7 @@ class PurpleGWExample
     end
     
     trap("INT") {
-      #TODO ctrl-c can not be deteced until a message is coming
+      #TODO ctrl-c can not be detected until a message is coming
       puts 'Ctrl-C, quit...'
       PurpleRuby.main_loop_stop
     }

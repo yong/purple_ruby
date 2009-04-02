@@ -18,16 +18,13 @@
 #include <libpurple/whiteboard.h>
 #include <libpurple/network.h>
 
-#include <glib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
 #include <ruby.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #define PURPLE_GLIB_READ_COND  (G_IO_IN | G_IO_HUP | G_IO_ERR)
 #define PURPLE_GLIB_WRITE_COND (G_IO_OUT | G_IO_HUP | G_IO_ERR | G_IO_NVAL)
@@ -107,6 +104,7 @@ static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
 static VALUE im_hanlder;
 static VALUE signed_on_hanlder;
+static GHashTable* hash_table;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
@@ -166,6 +164,8 @@ static PurpleCoreUiOps core_uiops =
 
 static VALUE init(VALUE self, VALUE debug)
 {
+  hash_table = g_hash_table_new(NULL, NULL);
+
   purple_debug_set_enabled((debug == Qnil || debug == Qfalse) ? FALSE : TRUE);
   purple_core_set_ui_ops(&core_uiops);
   purple_eventloop_set_ui_ops(&glib_eventloops);
@@ -209,7 +209,33 @@ static VALUE watch_signed_on_event(VALUE self)
   return signed_on_hanlder;
 }
 
-static void _server_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
+static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition condition)
+{
+  char message[4096] = {0};
+  int i = recv(socket, message, sizeof(message) - 1, 0);
+  if (i > 0) {
+    //printf("recv %d %d\n", socket, i);
+    
+    VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
+    if (NULL == str) rb_raise(rb_eRuntimeError, "can not find socket: %d", socket);
+    rb_str_append(str, rb_str_new2(message));
+  } else {
+    //printf("closed %d %d %s\n", socket, i, g_strerror(errno));
+    
+    VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
+    if (NULL == str) return;
+    
+    close(socket);
+    purple_input_remove(socket);
+    g_hash_table_remove(hash_table, (gpointer)socket);
+    
+    VALUE *args = g_new(VALUE, 1);
+    args[0] = str;
+    rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+  }
+}
+
+static void _accept_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
 {
   /* Check that it is a read condition */
 	if (condition != PURPLE_INPUT_READ)
@@ -221,25 +247,18 @@ static void _server_socket_handler(gpointer data, int server_socket, PurpleInput
   if ((client_socket = accept(server_socket, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
 		return;
 	}
+	
+	int flags = fcntl(client_socket, F_GETFL);
+	fcntl(client_socket, F_SETFL, flags | O_NONBLOCK);
+#ifndef _WIN32
+	fcntl(client_socket, F_SETFD, FD_CLOEXEC);
+#endif
 
-  char message[40960] = {0};
-  int n = 0;
-  int i = 0;
-  /* keep reading until the client shutdown connection*/
-  while ((i = recv(client_socket, message + n, sizeof(message) - n - 1, 0)) > 0) {
-    n += i;
-    if (n >= sizeof(message) - 1) {
-      break;
-    }
-  }
-  
-  close(client_socket);
-
-  if (n > 0) {
-    VALUE *args = g_new(VALUE, 1);
-    args[0] = rb_str_new2(message);
-    rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
-  }
+  //printf("new connection: %d\n", client_socket);
+	
+	g_hash_table_insert(hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
+	
+	purple_input_add(client_socket, PURPLE_INPUT_READ, _read_socket_handler, data);
 }
 
 static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
@@ -274,8 +293,8 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
   VALUE proc = rb_block_proc();
   
 	/* Open a watcher in the socket we have just opened */
-	purple_input_add(soc, PURPLE_INPUT_READ, _server_socket_handler, (gpointer)proc);
-
+	purple_input_add(soc, PURPLE_INPUT_READ, _accept_socket_handler, (gpointer)proc);
+	
 	return port;
 }
 
