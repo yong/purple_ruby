@@ -20,6 +20,7 @@
 
 #include <ruby.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -162,9 +163,21 @@ static PurpleCoreUiOps core_uiops =
 	NULL
 };
 
+static void
+sighandler(int sig)
+{
+  switch (sig) {
+  case SIGINT:
+		g_main_loop_quit(main_loop);
+		break;
+	}
+}
+
+
 static VALUE init(VALUE self, VALUE debug)
 {
   signal(SIGPIPE, SIG_IGN);
+  signal(SIGINT, sighandler);
   
   hash_table = g_hash_table_new(NULL, NULL);
 

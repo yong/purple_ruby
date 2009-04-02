@@ -53,13 +53,7 @@ class PurpleGWExample
       puts "send: #{protocol}, #{user}, #{message}"
       accounts[protocol].send_im(user, message)
     end
-    
-    trap("INT") {
-      #TODO ctrl-c can not be detected until a message is coming
-      puts 'Ctrl-C, quit...'
-      PurpleRuby.main_loop_stop
-    }
-    
+        
     PurpleRuby.main_loop_run
   end
   
