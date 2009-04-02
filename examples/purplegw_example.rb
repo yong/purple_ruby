@@ -44,6 +44,10 @@ class PurpleGWExample
       raise "connection_error: #{acc.username}"
     end
     
+    PurpleRuby.watch_notify_message do |type, title, primary, secondary|
+      puts "notify: #{type} #{title} #{primary} #{secondary}"
+    end
+    
     #listen a tcp port, parse incoming data and send it out.
     #We assume the incoming data is in the following format:
     #<protocol> <user> <message>

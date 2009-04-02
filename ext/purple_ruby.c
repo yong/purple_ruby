@@ -103,19 +103,22 @@ static VALUE cPurpleRuby;
 static VALUE cAccount;
 static char* UI_ID = "purplegw";
 static GMainLoop *main_loop;
-static VALUE im_handler;
+static VALUE im_handler = Qnil;
 static VALUE signed_on_handler;
 static VALUE connection_error_handler;
+static VALUE notify_message_handler = Qnil;
 static GHashTable* hash_table;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
 {	
-  VALUE *args = g_new(VALUE, 3);
-  args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
-  args[1] = rb_str_new2(who);
-  args[2] = rb_str_new2(message);
-  rb_funcall2(im_handler, rb_intern("call"), 3, args);
+  if (im_handler != Qnil) {
+    VALUE *args = g_new(VALUE, 3);
+    args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
+    args[1] = rb_str_new2(who);
+    args[2] = rb_str_new2(message);
+    rb_funcall2(im_handler, rb_intern("call"), 3, args);
+  }
 }
 
 static PurpleConversationUiOps conv_uiops = 
@@ -141,20 +144,45 @@ static PurpleConversationUiOps conv_uiops =
 	NULL
 };
 
-static void ui_init(void)
+static void* notify_message(PurpleNotifyMsgType type, 
+	const char *title,
+	const char *primary, 
+	const char *secondary)
 {
-	/**
-	 * This should initialize the UI components for all the modules. Here we
-	 * just initialize the UI for conversations.
-	 */
-	purple_conversations_set_ui_ops(&conv_uiops);
+  if (notify_message_handler != Qnil) {
+    VALUE *args = g_new(VALUE, 4);
+    args[0] = INT2FIX(type);
+    args[1] = rb_str_new2(title);
+    args[2] = rb_str_new2(primary);
+    args[3] = rb_str_new2(secondary);
+    rb_funcall2(notify_message_handler, rb_intern("call"), 4, args);
+  }
+  
+  return NULL;
 }
+
+static PurpleNotifyUiOps notify_ops =
+{
+  notify_message, /*notify_message*/
+  NULL,           /*notify_email*/ 
+  NULL,           /*notify_emails*/
+  NULL,           /*notify_formatted*/
+  NULL,           /*notify_searchresults*/
+  NULL,           /*notify_searchresults_new_rows*/
+  NULL,           /*notify_userinfo*/
+  NULL,           /*notify_uri*/
+  NULL,           /*close_notify*/
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+};
 
 static PurpleCoreUiOps core_uiops = 
 {
 	NULL,
 	NULL,
-	ui_init,
+	NULL,
 	NULL,
 
 	/* padding */
@@ -206,8 +234,16 @@ static VALUE init(VALUE self, VALUE debug)
 
 static VALUE watch_incoming_im(VALUE self)
 {
+  purple_conversations_set_ui_ops(&conv_uiops);
   im_handler = rb_block_proc();
   return im_handler;
+}
+
+static VALUE watch_notify_message(VALUE self)
+{
+  purple_notify_set_ui_ops(&notify_ops);
+  notify_message_handler = rb_block_proc();
+  return notify_message_handler;
 }
 
 static void signed_on(PurpleConnection* connection)
@@ -432,10 +468,15 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_notify_message", watch_notify_message, 0);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);
   rb_define_singleton_method(cPurpleRuby, "main_loop_stop", main_loop_stop, 0);
+  
+  rb_define_const(cPurpleRuby, "NOTIFY_MSG_ERROR", INT2NUM(PURPLE_NOTIFY_MSG_ERROR));
+  rb_define_const(cPurpleRuby, "NOTIFY_MSG_WARNING", INT2NUM(PURPLE_NOTIFY_MSG_WARNING));
+  rb_define_const(cPurpleRuby, "NOTIFY_MSG_INFO", INT2NUM(PURPLE_NOTIFY_MSG_INFO));
   
   cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
