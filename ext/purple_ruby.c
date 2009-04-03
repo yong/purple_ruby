@@ -210,6 +210,7 @@ static void* request_action(const char *title, const char *primary, const char *
     VALUE v = rb_funcall2(request_handler, rb_intern("call"), 4, args);
 	  
 	  if (v != Qnil && v != Qfalse) {
+	    const char *text = va_arg(actions, const char *);
 	    GCallback ok_cb = va_arg(actions, GCallback);
       ((PurpleRequestActionCb)ok_cb)(user_data, default_action);
     }
