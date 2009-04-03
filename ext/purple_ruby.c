@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -108,6 +109,7 @@ static VALUE signed_on_handler;
 static VALUE connection_error_handler;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
+static VALUE disconnect_handler = Qnil;
 static GHashTable* hash_table;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
@@ -140,6 +142,34 @@ static PurpleConversationUiOps conv_uiops =
 	NULL,                      /* custom_smiley_close  */
 	NULL,                      /* send_confirm         */
 	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+
+static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError reason,
+		const char *text)
+{
+  //TODO it could be nice to auto-reconnect instead of reporting
+  if (disconnect_handler != Qnil) {
+    VALUE *args = g_new(VALUE, 3);
+    args[0] = rb_str_new2(purple_account_get_username(purple_connection_get_account(gc)));
+    args[1] = INT2FIX(reason);
+    args[2] = rb_str_new2(text);
+    rb_funcall2(disconnect_handler, rb_intern("call"), 3, args);
+  }
+}
+
+static PurpleConnectionUiOps connection_ops = 
+{
+	NULL, /* connect_progress */
+	NULL, /* connected */
+	NULL, /* disconnected */
+	NULL, /* notice */
+	NULL,
+	NULL, /* network_connected */
+	NULL, /* network_disconnected */
+	report_disconnect_reason,
 	NULL,
 	NULL,
 	NULL
@@ -286,6 +316,13 @@ static VALUE watch_notify_message(VALUE self)
   purple_notify_set_ui_ops(&notify_ops);
   notify_message_handler = rb_block_proc();
   return notify_message_handler;
+}
+
+static VALUE watch_disconnect(VALUE self)
+{
+  purple_connections_set_ui_ops(&connection_ops);
+  disconnect_handler = rb_block_proc();
+  return disconnect_handler;
 }
 
 static VALUE watch_request(VALUE self)
@@ -519,8 +556,9 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_notify_message", watch_notify_message, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_request", watch_request, 0);
-  rb_define_singleton_method(cPurpleRuby, "login", login, 3);
+  rb_define_singleton_method(cPurpleRuby, "watch_disconnect", watch_disconnect, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
+  rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);
   rb_define_singleton_method(cPurpleRuby, "main_loop_stop", main_loop_stop, 0);
   
