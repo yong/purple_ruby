@@ -456,6 +456,9 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
 {
   PurpleAccount* account = purple_account_new(RSTRING(username)->ptr, RSTRING(protocol)->ptr);
+  if (NULL == account || NULL == account->presence) {
+    rb_raise(rb_eRuntimeError, "No able to create account: %s", RSTRING(protocol)->ptr);
+  }
   purple_account_set_password(account, RSTRING(password)->ptr);
   purple_account_set_enabled(account, UI_ID, TRUE);
   PurpleSavedStatus *status = purple_savedstatus_new(NULL, PURPLE_STATUS_AVAILABLE);
