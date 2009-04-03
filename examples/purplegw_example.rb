@@ -40,8 +40,13 @@ class PurpleGWExample
       puts "signed on: #{acc.username}"
     end
     
-    PurpleRuby.watch_connection_error do |acc| 
-      raise "connection_error: #{acc.username}"
+    PurpleRuby.watch_connection_error do |acc, type, description| 
+      raise "connection_error: #{acc.username} #{type} #{description}"
+    end
+    
+    PurpleRuby.watch_request do |title, primary, secondary, who|
+      puts "request: #{title}, #{primary}, #{secondary}, #{who}"
+      true #'true': accept a request; 'false': ignore a request
     end
     
     #listen a tcp port, parse incoming data and send it out.

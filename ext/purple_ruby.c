@@ -183,9 +183,9 @@ static void* notify_message(PurpleNotifyMsgType type,
   if (notify_message_handler != Qnil) {
     VALUE *args = g_new(VALUE, 4);
     args[0] = INT2FIX(type);
-    args[1] = rb_str_new2(title);
-    args[2] = rb_str_new2(primary);
-    args[3] = rb_str_new2(secondary);
+    args[1] = rb_str_new2(NULL == title ? "" : title);
+    args[2] = rb_str_new2(NULL == primary ? "" : primary);
+    args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
     rb_funcall2(notify_message_handler, rb_intern("call"), 4, args);
   }
   
@@ -203,11 +203,11 @@ static void* request_action(const char *title, const char *primary, const char *
 {
   if (request_handler != Qnil) {
 	  VALUE *args = g_new(VALUE, 4);
-    args[0] = INT2FIX(title);
-    args[1] = rb_str_new2(primary);
-    args[2] = rb_str_new2(secondary);
-    args[3] = rb_str_new2(who);
-    VALUE v = rb_funcall2(notify_message_handler, rb_intern("call"), 4, args);
+    args[0] = rb_str_new2(NULL == title ? "" : title);
+    args[1] = rb_str_new2(NULL == primary ? "" : primary);
+    args[2] = rb_str_new2(NULL == secondary ? "" : secondary);
+    args[3] = rb_str_new2(NULL == who ? "" : who);
+    VALUE v = rb_funcall2(request_handler, rb_intern("call"), 4, args);
 	  
 	  if (v != Qnil && v != Qfalse) {
 	    GCallback ok_cb = va_arg(actions, GCallback);
@@ -339,11 +339,16 @@ static void signed_on(PurpleConnection* connection)
   rb_funcall2((VALUE)signed_on_handler, rb_intern("call"), 1, args);
 }
 
-static void connection_error(PurpleConnection* connection)
+static void connection_error(PurpleConnection* connection, 
+                    PurpleConnectionError type,
+                    const gchar *description,
+                    gpointer unused)
 {
-  VALUE *args = g_new(VALUE, 1);
+  VALUE *args = g_new(VALUE, 3);
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  rb_funcall2((VALUE)connection_error_handler, rb_intern("call"), 1, args);
+  args[1] = INT2FIX(type);
+  args[2] = rb_str_new2(description);
+  rb_funcall2((VALUE)connection_error_handler, rb_intern("call"), 3, args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
