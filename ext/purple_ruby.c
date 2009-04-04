@@ -121,6 +121,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
     args[1] = rb_str_new2(who);
     args[2] = rb_str_new2(message);
     rb_funcall2(im_handler, rb_intern("call"), 3, args);
+    g_free(args);
   }
 }
 
@@ -157,6 +158,7 @@ static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError
     args[1] = INT2FIX(reason);
     args[2] = rb_str_new2(text);
     rb_funcall2(disconnect_handler, rb_intern("call"), 3, args);
+    g_free(args);
   }
 }
 
@@ -187,6 +189,7 @@ static void* notify_message(PurpleNotifyMsgType type,
     args[2] = rb_str_new2(NULL == primary ? "" : primary);
     args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
     rb_funcall2(notify_message_handler, rb_intern("call"), 4, args);
+    g_free(args);
   }
   
   return NULL;
@@ -214,6 +217,8 @@ static void* request_action(const char *title, const char *primary, const char *
 	    GCallback ok_cb = va_arg(actions, GCallback);
       ((PurpleRequestActionCb)ok_cb)(user_data, default_action);
     }
+    
+    g_free(args);
   }
   
   return NULL;
@@ -338,6 +343,7 @@ static void signed_on(PurpleConnection* connection)
   VALUE *args = g_new(VALUE, 1);
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
   rb_funcall2((VALUE)signed_on_handler, rb_intern("call"), 1, args);
+  g_free(args);
 }
 
 static void connection_error(PurpleConnection* connection, 
@@ -350,6 +356,7 @@ static void connection_error(PurpleConnection* connection,
   args[1] = INT2FIX(type);
   args[2] = rb_str_new2(description);
   rb_funcall2((VALUE)connection_error_handler, rb_intern("call"), 3, args);
+  g_free(args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
@@ -393,6 +400,7 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
     VALUE *args = g_new(VALUE, 1);
     args[0] = str;
     rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+    g_free(args);
   }
 }
 
