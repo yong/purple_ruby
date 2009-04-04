@@ -44,6 +44,7 @@ class PurpleGWExample
       raise "connection_error: #{acc.username} #{type} #{description}"
     end
     
+    #request can be: 'SSL Certificate Verification' etc
     PurpleRuby.watch_request do |title, primary, secondary, who|
       puts "request: #{title}, #{primary}, #{secondary}, #{who}"
       true #'true': accept a request; 'false': ignore a request
@@ -53,7 +54,7 @@ class PurpleGWExample
     #We assume the incoming data is in the following format:
     #<protocol> <user> <message>
     PurpleRuby.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
-      protocol, user, message = data.split(",").collect{|x| x.chomp.strip!}
+      protocol, user, message = data.split(",").collect{|x| x.chomp.strip}
       puts "send: #{protocol}, #{user}, #{message}"
       accounts[protocol].send_im(user, message)
     end
@@ -65,7 +66,7 @@ class PurpleGWExample
     to_users = [to_users] unless to_users.is_a?(Array)      
     to_users.each do |user|
       t = TCPSocket.new(SERVER_IP, SERVER_PORT)
-      t.print "#{protocol},#{user},#{message}\n"
+      t.print "#{protocol},#{user},#{message}"
       t.close
     end
   end
