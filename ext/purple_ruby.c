@@ -391,11 +391,12 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
   } else {
     purple_debug_info("purple_ruby", "close connection %d: %d %d\n", socket, i, errno);
     
+    close(socket);
+    purple_input_remove(socket);
+    
     VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
     if (NULL == str) return;
     
-    close(socket);
-    purple_input_remove(socket);
     g_hash_table_remove(hash_table, (gpointer)socket);
     
     VALUE *args = g_new(VALUE, 1);
