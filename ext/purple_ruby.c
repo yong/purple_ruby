@@ -111,6 +111,7 @@ static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
 static VALUE disconnect_handler = Qnil;
 static GHashTable* hash_table;
+static ID CALL;
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
@@ -120,7 +121,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
     args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
     args[1] = rb_str_new2(who);
     args[2] = rb_str_new2(message);
-    rb_funcall2(im_handler, rb_intern("call"), 3, args);
+    rb_funcall2(im_handler, CALL, 3, args);
     g_free(args);
   }
 }
@@ -157,7 +158,7 @@ static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError
     args[0] = rb_str_new2(purple_account_get_username(purple_connection_get_account(gc)));
     args[1] = INT2FIX(reason);
     args[2] = rb_str_new2(text);
-    rb_funcall2(disconnect_handler, rb_intern("call"), 3, args);
+    rb_funcall2(disconnect_handler, CALL, 3, args);
     g_free(args);
   }
 }
@@ -188,7 +189,7 @@ static void* notify_message(PurpleNotifyMsgType type,
     args[1] = rb_str_new2(NULL == title ? "" : title);
     args[2] = rb_str_new2(NULL == primary ? "" : primary);
     args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
-    rb_funcall2(notify_message_handler, rb_intern("call"), 4, args);
+    rb_funcall2(notify_message_handler, CALL, 4, args);
     g_free(args);
   }
   
@@ -210,7 +211,7 @@ static void* request_action(const char *title, const char *primary, const char *
     args[1] = rb_str_new2(NULL == primary ? "" : primary);
     args[2] = rb_str_new2(NULL == secondary ? "" : secondary);
     args[3] = rb_str_new2(NULL == who ? "" : who);
-    VALUE v = rb_funcall2(request_handler, rb_intern("call"), 4, args);
+    VALUE v = rb_funcall2(request_handler, CALL, 4, args);
 	  
 	  if (v != Qnil && v != Qfalse) {
 	    const char *text = va_arg(actions, const char *);
@@ -342,7 +343,7 @@ static void signed_on(PurpleConnection* connection)
 {
   VALUE *args = g_new(VALUE, 1);
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  rb_funcall2((VALUE)signed_on_handler, rb_intern("call"), 1, args);
+  rb_funcall2((VALUE)signed_on_handler, CALL, 1, args);
   g_free(args);
 }
 
@@ -355,7 +356,7 @@ static void connection_error(PurpleConnection* connection,
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
   args[1] = INT2FIX(type);
   args[2] = rb_str_new2(description);
-  rb_funcall2((VALUE)connection_error_handler, rb_intern("call"), 3, args);
+  rb_funcall2((VALUE)connection_error_handler, CALL, 3, args);
   g_free(args);
 }
 
@@ -382,13 +383,13 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
   char message[4096] = {0};
   int i = recv(socket, message, sizeof(message) - 1, 0);
   if (i > 0) {
-    //printf("recv %d %d\n", socket, i);
+    purple_debug_info("purple_ruby", "recv %d: %d", socket, i);
     
     VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
     if (NULL == str) rb_raise(rb_eRuntimeError, "can not find socket: %d", socket);
     rb_str_append(str, rb_str_new2(message));
   } else {
-    //printf("closed %d %d %s\n", socket, i, g_strerror(errno));
+    purple_debug_info("purple_ruby", "close connection %d: %d %d", socket, i, errno);
     
     VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
     if (NULL == str) return;
@@ -399,7 +400,7 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
     
     VALUE *args = g_new(VALUE, 1);
     args[0] = str;
-    rb_funcall2((VALUE)data, rb_intern("call"), 1, args);
+    rb_funcall2((VALUE)data, CALL, 1, args);
     g_free(args);
   }
 }
@@ -424,7 +425,7 @@ static void _accept_socket_handler(gpointer data, int server_socket, PurpleInput
 	fcntl(client_socket, F_SETFD, FD_CLOEXEC);
 #endif
 
-  //printf("new connection: %d\n", client_socket);
+  purple_debug_info("purple_ruby", "new connection: %d", client_socket);
 	
 	g_hash_table_insert(hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
 	
@@ -566,6 +567,8 @@ static VALUE has_buddy(VALUE self, VALUE buddy)
 
 void Init_purple_ruby() 
 {
+  CALL = rb_intern("call");
+
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
   rb_define_singleton_method(cPurpleRuby, "init", init, 1);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
