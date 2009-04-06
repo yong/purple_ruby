@@ -56,7 +56,7 @@ class PurpleGWExample
     PurpleRuby.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
       protocol, user, message = data.split(",").collect{|x| x.chomp.strip}
       puts "send: #{protocol}, #{user}, #{message}"
-      accounts[protocol].send_im(user, message)
+      puts accounts[protocol].send_im(user, message)
     end
         
     PurpleRuby.main_loop_run

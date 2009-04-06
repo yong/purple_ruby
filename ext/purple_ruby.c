@@ -414,6 +414,7 @@ static void _accept_socket_handler(gpointer data, int server_socket, PurpleInput
 	socklen_t sin_size = sizeof(struct sockaddr);
 	int client_socket;
   if ((client_socket = accept(server_socket, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
+    purple_debug_warning("purple_ruby", "failed to accept %d: %d", client_socket, errno);
 		return;
 	}
 	
