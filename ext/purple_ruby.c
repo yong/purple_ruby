@@ -540,6 +540,8 @@ static VALUE add_buddy(VALUE self, VALUE buddy)
   PurpleAccount *account;
   Data_Get_Struct(self, PurpleAccount, account);
   
+	PurpleBuddy* pb = purple_buddy_new(account, RSTRING(buddy)->ptr, NULL);
+  
   char* group = _("Buddies");
   PurpleGroup* grp = purple_find_group(group);
 	if (!grp)
@@ -547,10 +549,32 @@ static VALUE add_buddy(VALUE self, VALUE buddy)
 		grp = purple_group_new(group);
 		purple_blist_add_group(grp, NULL);
 	}
-	
-	PurpleBuddy* pb = purple_buddy_new(account, RSTRING(buddy)->ptr, NULL);
+  
   purple_blist_add_buddy(pb, NULL, grp, NULL);
   purple_account_add_buddy(account, pb);
+  return Qtrue;
+}
+
+static VALUE remove_buddy(VALUE self, VALUE buddy)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  
+	PurpleBuddy* pb = purple_find_buddy(account, RSTRING(buddy)->ptr);
+	if (NULL == pb) {
+	  rb_raise(rb_eRuntimeError, "Failed to remove buddy for %s : %s does not exist", purple_account_get_username(account), RSTRING(buddy)->ptr);
+	}
+	
+	char* group = _("Buddies");
+  PurpleGroup* grp = purple_find_group(group);
+	if (!grp)
+	{
+		grp = purple_group_new(group);
+		purple_blist_add_group(grp, NULL);
+	}
+	
+	purple_blist_remove_buddy(pb);
+	purple_account_remove_buddy(account, pb, grp);
   return Qtrue;
 }
 
@@ -591,5 +615,6 @@ void Init_purple_ruby()
   rb_define_method(cAccount, "send_im", send_im, 2);
   rb_define_method(cAccount, "username", username, 0);
   rb_define_method(cAccount, "add_buddy", add_buddy, 1);
+  rb_define_method(cAccount, "remove_buddy", remove_buddy, 1);
   rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
 }
