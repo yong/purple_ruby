@@ -383,13 +383,13 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
   char message[4096] = {0};
   int i = recv(socket, message, sizeof(message) - 1, 0);
   if (i > 0) {
-    purple_debug_info("purple_ruby", "recv %d: %d", socket, i);
+    purple_debug_info("purple_ruby", "recv %d: %d\n", socket, i);
     
     VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
     if (NULL == str) rb_raise(rb_eRuntimeError, "can not find socket: %d", socket);
     rb_str_append(str, rb_str_new2(message));
   } else {
-    purple_debug_info("purple_ruby", "close connection %d: %d %d", socket, i, errno);
+    purple_debug_info("purple_ruby", "close connection %d: %d %d\n", socket, i, errno);
     
     VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
     if (NULL == str) return;
@@ -415,7 +415,7 @@ static void _accept_socket_handler(gpointer data, int server_socket, PurpleInput
 	socklen_t sin_size = sizeof(struct sockaddr);
 	int client_socket;
   if ((client_socket = accept(server_socket, (struct sockaddr *)&their_addr, &sin_size)) == -1) {
-    purple_debug_warning("purple_ruby", "failed to accept %d: %d", client_socket, errno);
+    purple_debug_warning("purple_ruby", "failed to accept %d: %d\n", client_socket, errno);
 		return;
 	}
 	
@@ -425,7 +425,7 @@ static void _accept_socket_handler(gpointer data, int server_socket, PurpleInput
 	fcntl(client_socket, F_SETFD, FD_CLOEXEC);
 #endif
 
-  purple_debug_info("purple_ruby", "new connection: %d", client_socket);
+  purple_debug_info("purple_ruby", "new connection: %d\n", client_socket);
 	
 	g_hash_table_insert(hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
 	
