@@ -644,8 +644,8 @@ void Init_purple_ruby()
   rb_define_method(cAccount, "username", username, 0);
   rb_define_method(cAccount, "protocol_id", protocol_id, 0);
   rb_define_method(cAccount, "protocol_name", protocol_name, 0);
-  rb_define_method(cAccount, "get_bool_setting", get_bool_setting, 1);
-  rb_define_method(cAccount, "get_string_setting", get_string_setting, 1);
+  rb_define_method(cAccount, "get_bool_setting", get_bool_setting, 2);
+  rb_define_method(cAccount, "get_string_setting", get_string_setting, 2);
   rb_define_method(cAccount, "add_buddy", add_buddy, 1);
   rb_define_method(cAccount, "remove_buddy", remove_buddy, 1);
   rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
