@@ -103,26 +103,50 @@ static PurpleEventLoopUiOps glib_eventloops =
 static VALUE cPurpleRuby;
 static VALUE cAccount;
 static char* UI_ID = "purplegw";
-static GMainLoop *main_loop;
+static GMainLoop *main_loop = NULL;
 static VALUE im_handler = Qnil;
-static VALUE signed_on_handler;
-static VALUE connection_error_handler;
+static VALUE signed_on_handler = Qnil;
+static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
-static VALUE disconnect_handler = Qnil;
-static GHashTable* hash_table;
+static GHashTable* hash_table = NULL;
 static ID CALL;
+
+static void connection_error(PurpleConnection* connection, 
+                    PurpleConnectionError type,
+                    const gchar *description,
+                    gpointer unused)
+{
+  if (Qnil != connection_error_handler) {
+    VALUE *args = g_new(VALUE, 3);
+    args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
+    args[1] = INT2FIX(type);
+    args[2] = rb_str_new2(description);
+    rb_funcall2((VALUE)connection_error_handler, CALL, 3, args);
+    g_free(args);
+  }
+}
 
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
 {	
   if (im_handler != Qnil) {
-    VALUE *args = g_new(VALUE, 3);
-    args[0] = rb_str_new2(purple_account_get_username(purple_conversation_get_account(conv)));
-    args[1] = rb_str_new2(who);
-    args[2] = rb_str_new2(message);
-    rb_funcall2(im_handler, CALL, 3, args);
-    g_free(args);
+    PurpleAccount* account = purple_conversation_get_account(conv);
+    if (strcmp(purple_account_get_protocol_id(account), "prpl-msn") == 0 &&
+        strstr(message, "Message could not be sent") != NULL) {
+      /* I have seen error like 'msn: Connection error from Switchboard server'.
+       * In that case, libpurple will notify user with two regular im message.
+       * The first message is an error message, the second one is the original message that failed to send.
+       */
+      connection_error(purple_account_get_connection(account), PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message, NULL);
+    } else {
+      VALUE *args = g_new(VALUE, 3);
+      args[0] = rb_str_new2(purple_account_get_username(account));
+      args[1] = rb_str_new2(who);
+      args[2] = rb_str_new2(message);
+      rb_funcall2(im_handler, CALL, 3, args);
+      g_free(args);
+    }
   }
 }
 
@@ -149,18 +173,9 @@ static PurpleConversationUiOps conv_uiops =
 	NULL
 };
 
-static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError reason,
-		const char *text)
+static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError reason, const char *text)
 {
-  //TODO it could be nice to auto-reconnect instead of reporting
-  if (disconnect_handler != Qnil) {
-    VALUE *args = g_new(VALUE, 3);
-    args[0] = rb_str_new2(purple_account_get_username(purple_connection_get_account(gc)));
-    args[1] = INT2FIX(reason);
-    args[2] = rb_str_new2(text);
-    rb_funcall2(disconnect_handler, CALL, 3, args);
-    g_free(args);
-  }
+  connection_error(gc, reason, text, NULL);
 }
 
 static PurpleConnectionUiOps connection_ops = 
@@ -325,13 +340,6 @@ static VALUE watch_notify_message(VALUE self)
   return notify_message_handler;
 }
 
-static VALUE watch_disconnect(VALUE self)
-{
-  purple_connections_set_ui_ops(&connection_ops);
-  disconnect_handler = rb_block_proc();
-  return disconnect_handler;
-}
-
 static VALUE watch_request(VALUE self)
 {
   purple_request_set_ui_ops(&request_ops);
@@ -347,19 +355,6 @@ static void signed_on(PurpleConnection* connection)
   g_free(args);
 }
 
-static void connection_error(PurpleConnection* connection, 
-                    PurpleConnectionError type,
-                    const gchar *description,
-                    gpointer unused)
-{
-  VALUE *args = g_new(VALUE, 3);
-  args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  args[1] = INT2FIX(type);
-  args[2] = rb_str_new2(description);
-  rb_funcall2((VALUE)connection_error_handler, CALL, 3, args);
-  g_free(args);
-}
-
 static VALUE watch_signed_on_event(VALUE self)
 {
   signed_on_handler = rb_block_proc();
@@ -371,6 +366,8 @@ static VALUE watch_signed_on_event(VALUE self)
 
 static VALUE watch_connection_error(VALUE self)
 {
+  purple_connections_set_ui_ops(&connection_ops);
+  
   connection_error_handler = rb_block_proc();
   int handle;
 	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
@@ -602,7 +599,6 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_notify_message", watch_notify_message, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_request", watch_request, 0);
-  rb_define_singleton_method(cPurpleRuby, "watch_disconnect", watch_disconnect, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);
