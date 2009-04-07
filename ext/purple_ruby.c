@@ -514,6 +514,37 @@ static VALUE username(VALUE self)
   return rb_str_new2(purple_account_get_username(account));
 }
 
+static VALUE protocol_id(VALUE self)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  return rb_str_new2(purple_account_get_protocol_id(account));
+}
+
+static VALUE protocol_name(VALUE self)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  return rb_str_new2(purple_account_get_protocol_name(account));
+}
+
+static VALUE get_bool_setting(VALUE self, VALUE name, VALUE default_value)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  gboolean value = purple_account_get_bool(account, RSTRING(name)->ptr, 
+    (default_value == Qfalse || default_value == Qnil) ? FALSE : TRUE); 
+  return (TRUE == value) ? Qtrue : Qfalse;
+}
+
+static VALUE get_string_setting(VALUE self, VALUE name, VALUE default_value)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  const char* value = purple_account_get_string(account, RSTRING(name)->ptr, RSTRING(default_value)->ptr);
+  return (NULL == value) ? Qnil : rb_str_new2(value);
+}
+
 static VALUE list_protocols(VALUE self)
 {
   VALUE array = rb_ary_new();
@@ -611,6 +642,10 @@ void Init_purple_ruby()
   cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
   rb_define_method(cAccount, "username", username, 0);
+  rb_define_method(cAccount, "protocol_id", protocol_id, 0);
+  rb_define_method(cAccount, "protocol_name", protocol_name, 0);
+  rb_define_method(cAccount, "get_bool_setting", get_bool_setting, 1);
+  rb_define_method(cAccount, "get_string_setting", get_string_setting, 1);
   rb_define_method(cAccount, "add_buddy", add_buddy, 1);
   rb_define_method(cAccount, "remove_buddy", remove_buddy, 1);
   rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
