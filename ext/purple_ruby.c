@@ -64,7 +64,7 @@ static guint glib_input_add(gint fd, PurpleInputCondition condition, PurpleInput
 	PurpleGLibIOClosure *closure = g_new0(PurpleGLibIOClosure, 1);
 	GIOChannel *channel;
 	GIOCondition cond = 0;
-
+	
 	closure->function = function;
 	closure->data = data;
 
@@ -109,7 +109,8 @@ static VALUE signed_on_handler = Qnil;
 static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
-static GHashTable* hash_table = NULL;
+static GHashTable* data_hash_table = NULL;
+static GHashTable* fd_hash_table = NULL;
 static ID CALL;
 
 static void connection_error(PurpleConnection* connection, 
@@ -229,7 +230,7 @@ static void* request_action(const char *title, const char *primary, const char *
     VALUE v = rb_funcall2(request_handler, CALL, 4, args);
 	  
 	  if (v != Qnil && v != Qfalse) {
-	    const char *text = va_arg(actions, const char *);
+	    /*const char *text =*/ va_arg(actions, const char *);
 	    GCallback ok_cb = va_arg(actions, GCallback);
       ((PurpleRequestActionCb)ok_cb)(user_data, default_action);
     }
@@ -303,7 +304,8 @@ static VALUE init(VALUE self, VALUE debug)
   signal(SIGPIPE, SIG_IGN);
   signal(SIGINT, sighandler);
   
-  hash_table = g_hash_table_new(NULL, NULL);
+  data_hash_table = g_hash_table_new(NULL, NULL);
+  fd_hash_table = g_hash_table_new(NULL, NULL);
 
   purple_debug_set_enabled((debug == Qnil || debug == Qfalse) ? FALSE : TRUE);
   purple_core_set_ui_ops(&core_uiops);
@@ -382,22 +384,31 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
   if (i > 0) {
     purple_debug_info("purple_ruby", "recv %d: %d\n", socket, i);
     
-    VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
+    gpointer str = g_hash_table_lookup(data_hash_table, (gpointer)socket);
     if (NULL == str) rb_raise(rb_eRuntimeError, "can not find socket: %d", socket);
-    rb_str_append(str, rb_str_new2(message));
+    rb_str_append((VALUE)str, rb_str_new2(message));
   } else {
     purple_debug_info("purple_ruby", "close connection %d: %d %d\n", socket, i, errno);
     
+    gpointer str = g_hash_table_lookup(data_hash_table, (gpointer)socket);
+    if (NULL == str) {
+      purple_debug_warning("purple_ruby", "can not find socket in data_hash_table %d\n", socket);
+      return;
+    }
+    
+    gpointer purple_fd = g_hash_table_lookup(fd_hash_table, (gpointer)socket);
+    if (NULL == purple_fd) {
+      purple_debug_warning("purple_ruby", "can not find socket in fd_hash_table %d\n", socket);
+      return;
+    }
+    
+    g_hash_table_remove(fd_hash_table, (gpointer)socket);
+    g_hash_table_remove(data_hash_table, (gpointer)socket);
+    purple_input_remove((guint)purple_fd);
     close(socket);
-    purple_input_remove(socket);
-    
-    VALUE str = (VALUE)g_hash_table_lookup(hash_table, (gpointer)socket);
-    if (NULL == str) return;
-    
-    g_hash_table_remove(hash_table, (gpointer)socket);
     
     VALUE *args = g_new(VALUE, 1);
-    args[0] = str;
+    args[0] = (VALUE)str;
     rb_funcall2((VALUE)data, CALL, 1, args);
     g_free(args);
   }
@@ -425,9 +436,10 @@ static void _accept_socket_handler(gpointer data, int server_socket, PurpleInput
 
   purple_debug_info("purple_ruby", "new connection: %d\n", client_socket);
 	
-	g_hash_table_insert(hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
+	guint purple_fd = purple_input_add(client_socket, PURPLE_INPUT_READ, _read_socket_handler, data);
 	
-	purple_input_add(client_socket, PURPLE_INPUT_READ, _read_socket_handler, data);
+	g_hash_table_insert(data_hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
+	g_hash_table_insert(fd_hash_table, (gpointer)client_socket, (gpointer)purple_fd);
 }
 
 static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
