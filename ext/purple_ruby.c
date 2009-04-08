@@ -121,7 +121,7 @@ static PurpleEventLoopUiOps glib_eventloops =
 
 static VALUE cPurpleRuby;
 static VALUE cAccount;
-static char* UI_ID = "purplegw";
+const char* UI_ID = "purplegw";
 static GMainLoop *main_loop = NULL;
 static VALUE im_handler = Qnil;
 static VALUE signed_on_handler = Qnil;
@@ -193,10 +193,11 @@ static PurpleConversationUiOps conv_uiops =
 	NULL
 };
 
-static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError reason, const char *text)
-{
-  connection_error(gc, reason, text, NULL);
-}
+extern void
+finch_connection_report_disconnect(PurpleConnection *gc, PurpleConnectionError reason,
+		const char *text);
+		
+extern void finch_connections_init();
 
 static PurpleConnectionUiOps connection_ops = 
 {
@@ -207,7 +208,7 @@ static PurpleConnectionUiOps connection_ops =
 	NULL,
 	NULL, /* network_connected */
 	NULL, /* network_disconnected */
-	report_disconnect_reason,
+	finch_connection_report_disconnect,
 	NULL,
 	NULL,
 	NULL
@@ -387,6 +388,7 @@ static VALUE watch_signed_on_event(VALUE self)
 
 static VALUE watch_connection_error(VALUE self)
 {
+  finch_connections_init();
   purple_connections_set_ui_ops(&connection_ops);
   
   connection_error_handler = rb_block_proc();
