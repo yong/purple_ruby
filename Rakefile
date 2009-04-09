@@ -3,7 +3,7 @@ require 'hoe'
 
 EXT = "ext/ruburple_ext.#{Hoe::DLEXT}"
 
-Hoe.new('purple_ruby', '0.3.0') do |p|
+Hoe.new('purple_ruby', '0.3.1') do |p|
   p.author = 'yong'
   p.email = 'yong@intridea.com'
   p.url = 'http://www.intridea.com'

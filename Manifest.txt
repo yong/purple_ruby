@@ -1,5 +1,6 @@
 ext/extconf.rb
 ext/purple_ruby.c
+ext/reconnect.c
 examples/purplegw_example.rb
 Manifest.txt
 History.txt
