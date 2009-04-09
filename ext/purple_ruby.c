@@ -132,17 +132,25 @@ static GHashTable* data_hash_table = NULL;
 static GHashTable* fd_hash_table = NULL;
 static ID CALL;
 
-static void connection_error(PurpleConnection* connection, 
-                    PurpleConnectionError type,
-                    const gchar *description,
-                    gpointer unused)
+extern void
+finch_connection_report_disconnect(PurpleConnection *gc, PurpleConnectionError reason,
+		const char *text);
+		
+extern void finch_connections_init();
+
+void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const char *text)
 {
   if (Qnil != connection_error_handler) {
     VALUE *args = g_new(VALUE, 3);
-    args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-    args[1] = INT2FIX(type);
-    args[2] = rb_str_new2(description);
-    rb_funcall2((VALUE)connection_error_handler, CALL, 3, args);
+    args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(gc));
+    args[1] = INT2FIX(reason);
+    args[2] = rb_str_new2(text);
+    VALUE v = rb_funcall2((VALUE)connection_error_handler, CALL, 3, args);
+    
+    if (v != Qnil && v != Qfalse) {
+      finch_connection_report_disconnect(gc, reason, text);
+    }
+    
     g_free(args);
   }
 }
@@ -158,7 +166,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
        * In that case, libpurple will notify user with two regular im message.
        * The first message is an error message, the second one is the original message that failed to send.
        */
-      connection_error(purple_account_get_connection(account), PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message, NULL);
+      report_disconnect(purple_account_get_connection(account), PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message);
     } else {
       VALUE *args = g_new(VALUE, 3);
       args[0] = rb_str_new2(purple_account_get_username(account));
@@ -193,12 +201,6 @@ static PurpleConversationUiOps conv_uiops =
 	NULL
 };
 
-extern void
-finch_connection_report_disconnect(PurpleConnection *gc, PurpleConnectionError reason,
-		const char *text);
-		
-extern void finch_connections_init();
-
 static PurpleConnectionUiOps connection_ops = 
 {
 	NULL, /* connect_progress */
@@ -208,7 +210,7 @@ static PurpleConnectionUiOps connection_ops =
 	NULL,
 	NULL, /* network_connected */
 	NULL, /* network_disconnected */
-	finch_connection_report_disconnect,
+	report_disconnect,
 	NULL,
 	NULL,
 	NULL
@@ -392,9 +394,9 @@ static VALUE watch_connection_error(VALUE self)
   purple_connections_set_ui_ops(&connection_ops);
   
   connection_error_handler = rb_block_proc();
-  int handle;
+  /*int handle;
 	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
-				PURPLE_CALLBACK(connection_error), NULL);
+				PURPLE_CALLBACK(connection_error), NULL);*/
   return connection_error_handler;
 }
 

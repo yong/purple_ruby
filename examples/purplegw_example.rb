@@ -41,7 +41,8 @@ class PurpleGWExample
     end
     
     PurpleRuby.watch_connection_error do |acc, type, description| 
-      raise "connection_error: #{acc.username} #{type} #{description}"
+      puts "connection_error: #{acc.username} #{type} #{description}"
+      true #'true': auto-reconnect; 'false': do nothing
     end
     
     #request can be: 'SSL Certificate Verification' etc
@@ -51,11 +52,11 @@ class PurpleGWExample
     end
     
     #listen a tcp port, parse incoming data and send it out.
-    #We assume the incoming data is in the following format:
-    #<protocol> <user> <message>
+    #We assume the incoming data is in the following format (separated by comma):
+    #<protocol>,<user>,<message>
     PurpleRuby.watch_incoming_ipc(SERVER_IP, SERVER_PORT) do |data|
       protocol, user, message = data.split(",").collect{|x| x.chomp.strip}
-      puts "send: #{protocol}, #{user}, #{message}"
+      puts "send: #{protocol},#{user},#{message}"
       puts accounts[protocol].send_im(user, message)
     end
         
