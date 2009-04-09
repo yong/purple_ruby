@@ -323,6 +323,7 @@ static void sighandler(int sig)
 
 static VALUE init(VALUE self, VALUE debug)
 {
+  signal(SIGCHLD, SIG_IGN);
   signal(SIGPIPE, SIG_IGN);
   signal(SIGINT, sighandler);
   
