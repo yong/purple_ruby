@@ -120,7 +120,7 @@ static PurpleEventLoopUiOps glib_eventloops =
 };
 
 static VALUE cPurpleRuby;
-static VALUE cAccount;
+VALUE cAccount;
 const char* UI_ID = "purplegw";
 static GMainLoop *main_loop = NULL;
 static VALUE im_handler = Qnil;
@@ -128,9 +128,11 @@ static VALUE signed_on_handler = Qnil;
 static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
+VALUE new_buddy_handler = Qnil;
 static GHashTable* data_hash_table = NULL;
 static GHashTable* fd_hash_table = NULL;
-static ID CALL;
+ID CALL;
+extern PurpleAccountUiOps account_ops;
 
 extern void
 finch_connection_report_disconnect(PurpleConnection *gc, PurpleConnectionError reason,
@@ -370,6 +372,13 @@ static VALUE watch_request(VALUE self)
   purple_request_set_ui_ops(&request_ops);
   request_handler = rb_block_proc();
   return request_handler;
+}
+
+static VALUE watch_new_buddy(VALUE self)
+{
+  purple_accounts_set_ui_ops(&account_ops);
+  new_buddy_handler = rb_block_proc();
+  return new_buddy_handler;
 }
 
 static void signed_on(PurpleConnection* connection)
@@ -666,6 +675,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_notify_message", watch_notify_message, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_request", watch_request, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_new_buddy", watch_new_buddy, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);

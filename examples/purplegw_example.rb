@@ -51,6 +51,16 @@ class PurpleGWExample
       true #'true': accept a request; 'false': ignore a request
     end
     
+    #request for authorization when someone adds this account to their buddy list
+    PurpleRuby.watch_new_buddy do |acc, remote_user, message| 
+      puts "new buddy: #{acc.username} #{remote_user} #{message}"
+      true #'true': accept; 'false': deny
+    end
+    
+    PurpleRuby.watch_notify_message do |type, title, primary, secondary|
+      puts "notification: #{type}, #{title}, #{primary}, #{secondary}"
+    end
+    
     #listen a tcp port, parse incoming data and send it out.
     #We assume the incoming data is in the following format (separated by comma):
     #<protocol>,<user>,<message>
