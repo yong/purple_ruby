@@ -97,7 +97,10 @@ request_add(PurpleAccount *account, const char *remote_user,
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, account);
     args[1] = rb_str_new2(NULL == remote_user ? "" : remote_user);
     args[2] = rb_str_new2(NULL == message ? "" : message);
-    VALUE v = rb_funcall2((VALUE)new_buddy_handler, CALL, 3, args);
+    if (rb_obj_class(new_buddy_handler) != rb_cProc) {
+      rb_raise(rb_eTypeError, "new_buddy_handler has unexpected type");
+    }
+    VALUE v = rb_funcall2(new_buddy_handler, CALL, 3, args);
     
     if (v != Qnil && v != Qfalse) {
       PurpleConnection *gc = purple_account_get_connection(account);

@@ -128,6 +128,7 @@ static VALUE signed_on_handler = Qnil;
 static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
+static VALUE ipc_handler = Qnil;
 VALUE new_buddy_handler = Qnil;
 static GHashTable* data_hash_table = NULL;
 static GHashTable* fd_hash_table = NULL;
@@ -147,7 +148,10 @@ void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(gc));
     args[1] = INT2FIX(reason);
     args[2] = rb_str_new2(text);
-    VALUE v = rb_funcall2((VALUE)connection_error_handler, CALL, 3, args);
+    if (rb_obj_class(connection_error_handler) != rb_cProc) {
+      rb_raise(rb_eTypeError, "connection_error_handler has unexpected type");
+    }
+    VALUE v = rb_funcall2(connection_error_handler, CALL, 3, args);
     
     if (v != Qnil && v != Qfalse) {
       finch_connection_report_disconnect(gc, reason, text);
@@ -174,6 +178,9 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
       args[0] = rb_str_new2(purple_account_get_username(account));
       args[1] = rb_str_new2(who);
       args[2] = rb_str_new2(message);
+      if (rb_obj_class(im_handler) != rb_cProc) {
+        rb_raise(rb_eTypeError, "im_handler has unexpected type");
+      }
       rb_funcall2(im_handler, CALL, 3, args);
       g_free(args);
     }
@@ -229,6 +236,9 @@ static void* notify_message(PurpleNotifyMsgType type,
     args[1] = rb_str_new2(NULL == title ? "" : title);
     args[2] = rb_str_new2(NULL == primary ? "" : primary);
     args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
+    if (rb_obj_class(notify_message_handler) != rb_cProc) {
+      rb_raise(rb_eTypeError, "notify_message_handler has unexpected type");
+    }
     rb_funcall2(notify_message_handler, CALL, 4, args);
     g_free(args);
   }
@@ -251,6 +261,9 @@ static void* request_action(const char *title, const char *primary, const char *
     args[1] = rb_str_new2(NULL == primary ? "" : primary);
     args[2] = rb_str_new2(NULL == secondary ? "" : secondary);
     args[3] = rb_str_new2(NULL == who ? "" : who);
+    if (rb_obj_class(request_handler) != rb_cProc) {
+      rb_raise(rb_eTypeError, "request_hanlder has unexpected type");
+    }
     VALUE v = rb_funcall2(request_handler, CALL, 4, args);
 	  
 	  if (v != Qnil && v != Qfalse) {
@@ -356,6 +369,9 @@ static VALUE init(VALUE self, VALUE debug)
 static VALUE watch_incoming_im(VALUE self)
 {
   purple_conversations_set_ui_ops(&conv_uiops);
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_incoming_im: no block");
+  }
   im_handler = rb_block_proc();
   return im_handler;
 }
@@ -363,6 +379,9 @@ static VALUE watch_incoming_im(VALUE self)
 static VALUE watch_notify_message(VALUE self)
 {
   purple_notify_set_ui_ops(&notify_ops);
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_incoming_ipc: no block");
+  }
   notify_message_handler = rb_block_proc();
   return notify_message_handler;
 }
@@ -370,6 +389,9 @@ static VALUE watch_notify_message(VALUE self)
 static VALUE watch_request(VALUE self)
 {
   purple_request_set_ui_ops(&request_ops);
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_request: no block");
+  }
   request_handler = rb_block_proc();
   return request_handler;
 }
@@ -377,6 +399,9 @@ static VALUE watch_request(VALUE self)
 static VALUE watch_new_buddy(VALUE self)
 {
   purple_accounts_set_ui_ops(&account_ops);
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_new_buddy: no block");
+  }
   new_buddy_handler = rb_block_proc();
   return new_buddy_handler;
 }
@@ -385,12 +410,18 @@ static void signed_on(PurpleConnection* connection)
 {
   VALUE *args = g_new(VALUE, 1);
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  rb_funcall2((VALUE)signed_on_handler, CALL, 1, args);
+  if (rb_obj_class(signed_on_handler) != rb_cProc) {
+    rb_raise(rb_eTypeError, "signed_on_handler has unexpected type");
+  }
+  rb_funcall2(signed_on_handler, CALL, 1, args);
   g_free(args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
 {
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_signed_on_event: no block");
+  }
   signed_on_handler = rb_block_proc();
   int handle;
 	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
@@ -403,6 +434,9 @@ static VALUE watch_connection_error(VALUE self)
   finch_connections_init();
   purple_connections_set_ui_ops(&connection_ops);
   
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_connection_error: no block");
+  }
   connection_error_handler = rb_block_proc();
   /*int handle;
 	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
@@ -410,7 +444,7 @@ static VALUE watch_connection_error(VALUE self)
   return connection_error_handler;
 }
 
-static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition condition)
+static void _read_socket_handler(gpointer notused, int socket, PurpleInputCondition condition)
 {
   char message[4096] = {0};
   int i = recv(socket, message, sizeof(message) - 1, 0);
@@ -442,12 +476,15 @@ static void _read_socket_handler(gpointer data, int socket, PurpleInputCondition
     
     VALUE *args = g_new(VALUE, 1);
     args[0] = (VALUE)str;
-    rb_funcall2((VALUE)data, CALL, 1, args);
+    if (rb_obj_class(ipc_handler) != rb_cProc) {
+      rb_raise(rb_eTypeError, "ipc_handler has unexpected type");
+    }
+    rb_funcall2(ipc_handler, CALL, 1, args);
     g_free(args);
   }
 }
 
-static void _accept_socket_handler(gpointer data, int server_socket, PurpleInputCondition condition)
+static void _accept_socket_handler(gpointer notused, int server_socket, PurpleInputCondition condition)
 {
   /* Check that it is a read condition */
 	if (condition != PURPLE_INPUT_READ)
@@ -469,7 +506,7 @@ static void _accept_socket_handler(gpointer data, int server_socket, PurpleInput
 
   purple_debug_info("purple_ruby", "new connection: %d\n", client_socket);
 	
-	guint purple_fd = purple_input_add(client_socket, PURPLE_INPUT_READ, _read_socket_handler, data);
+	guint purple_fd = purple_input_add(client_socket, PURPLE_INPUT_READ, _read_socket_handler, NULL);
 	
 	g_hash_table_insert(data_hash_table, (gpointer)client_socket, (gpointer)rb_str_new2(""));
 	g_hash_table_insert(fd_hash_table, (gpointer)client_socket, (gpointer)purple_fd);
@@ -504,10 +541,13 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 		return Qnil;
 	}
 
-  VALUE proc = rb_block_proc();
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "watch_incoming_ipc: no block");
+  }
+  ipc_handler = rb_block_proc();
   
 	/* Open a watcher in the socket we have just opened */
-	purple_input_add(soc, PURPLE_INPUT_READ, _accept_socket_handler, (gpointer)proc);
+	purple_input_add(soc, PURPLE_INPUT_READ, _accept_socket_handler, NULL);
 	
 	return port;
 }
