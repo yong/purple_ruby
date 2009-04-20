@@ -149,7 +149,7 @@ void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const
     args[1] = INT2FIX(reason);
     args[2] = rb_str_new2(text);
     if (rb_obj_class(connection_error_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "connection_error_handler has unexpected type");
+      rb_raise(rb_eTypeError, "connection_error_handler has unexpected type: %s", RSTRING(rb_obj_inspect(connection_error_handler))->ptr);
     }
     VALUE v = rb_funcall2(connection_error_handler, CALL, 3, args);
     
@@ -437,7 +437,13 @@ static VALUE watch_connection_error(VALUE self)
   if (!rb_block_given_p()) {
     rb_raise(rb_eArgError, "watch_connection_error: no block");
   }
+  if (Qnil != connection_error_handler) {
+    rb_raise(rb_eArgError, "watch_connection_error should only be called once");
+  }
   connection_error_handler = rb_block_proc();
+  if (rb_obj_class(connection_error_handler) != rb_cProc) {
+    rb_raise(rb_eTypeError, "connection_error_handler got unexpected type: %s", RSTRING(rb_obj_inspect(connection_error_handler))->ptr);
+  }
   /*int handle;
 	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
 				PURPLE_CALLBACK(connection_error), NULL);*/
