@@ -146,6 +146,24 @@ VALUE inspect_rb_obj(VALUE obj)
   return rb_funcall(obj, rb_intern("inspect"), 0, 0);
 }
 
+void set_callback(VALUE* handler, const char* handler_name)
+{
+  if (!rb_block_given_p()) {
+    rb_raise(rb_eArgError, "%s: no block", handler_name);
+  }
+  
+  if (Qnil != *handler) {
+    rb_raise(rb_eArgError, "%s should only be assigned once", handler_name);
+  }
+  
+  *handler = rb_block_proc();
+  
+  if (rb_obj_class(*handler) != rb_cProc) {
+    rb_raise(rb_eTypeError, "%s got unexpected type: %s", handler_name, 
+       RSTRING(inspect_rb_obj(*handler))->ptr);
+  }
+}
+
 void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const char *text)
 {
   if (Qnil != connection_error_handler) {
@@ -267,7 +285,7 @@ static void* request_action(const char *title, const char *primary, const char *
     args[2] = rb_str_new2(NULL == secondary ? "" : secondary);
     args[3] = rb_str_new2(NULL == who ? "" : who);
     if (rb_obj_class(request_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "request_hanlder has unexpected type: %s", RSTRING(inspect_rb_obj(request_handler))->ptr);
+      rb_raise(rb_eTypeError, "request_handler has unexpected type: %s", RSTRING(inspect_rb_obj(request_handler))->ptr);
     }
     VALUE v = rb_funcall2(request_handler, CALL, 4, args);
 	  
@@ -374,40 +392,28 @@ static VALUE init(VALUE self, VALUE debug)
 static VALUE watch_incoming_im(VALUE self)
 {
   purple_conversations_set_ui_ops(&conv_uiops);
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_incoming_im: no block");
-  }
-  im_handler = rb_block_proc();
+  set_callback(&im_handler, "im_handler");
   return im_handler;
 }
 
 static VALUE watch_notify_message(VALUE self)
 {
   purple_notify_set_ui_ops(&notify_ops);
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_incoming_ipc: no block");
-  }
-  notify_message_handler = rb_block_proc();
+  set_callback(&notify_message_handler, "notify_message_handler");
   return notify_message_handler;
 }
 
 static VALUE watch_request(VALUE self)
 {
   purple_request_set_ui_ops(&request_ops);
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_request: no block");
-  }
-  request_handler = rb_block_proc();
+  set_callback(&request_handler, "request_handler");
   return request_handler;
 }
 
 static VALUE watch_new_buddy(VALUE self)
 {
   purple_accounts_set_ui_ops(&account_ops);
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_new_buddy: no block");
-  }
-  new_buddy_handler = rb_block_proc();
+  set_callback(&new_buddy_handler, "new_buddy_handler");
   return new_buddy_handler;
 }
 
@@ -424,10 +430,7 @@ static void signed_on(PurpleConnection* connection)
 
 static VALUE watch_signed_on_event(VALUE self)
 {
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_signed_on_event: no block");
-  }
-  signed_on_handler = rb_block_proc();
+  set_callback(&signed_on_handler, "signed_on_handler");
   int handle;
 	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
 				PURPLE_CALLBACK(signed_on), NULL);
@@ -439,16 +442,8 @@ static VALUE watch_connection_error(VALUE self)
   finch_connections_init();
   purple_connections_set_ui_ops(&connection_ops);
   
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_connection_error: no block");
-  }
-  if (Qnil != connection_error_handler) {
-    rb_raise(rb_eArgError, "watch_connection_error should only be called once");
-  }
-  connection_error_handler = rb_block_proc();
-  if (rb_obj_class(connection_error_handler) != rb_cProc) {
-    rb_raise(rb_eTypeError, "connection_error_handler got unexpected type: %s", RSTRING(inspect_rb_obj(connection_error_handler))->ptr);
-  }
+  set_callback(&connection_error_handler, "connection_error_handler");
+  
   /*int handle;
 	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
 				PURPLE_CALLBACK(connection_error), NULL);*/
@@ -552,10 +547,7 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 		return Qnil;
 	}
 
-  if (!rb_block_given_p()) {
-    rb_raise(rb_eArgError, "watch_incoming_ipc: no block");
-  }
-  ipc_handler = rb_block_proc();
+  set_callback(&ipc_handler, "ipc_handler");
   
 	/* Open a watcher in the socket we have just opened */
 	purple_input_add(soc, PURPLE_INPUT_READ, _accept_socket_handler, NULL);
