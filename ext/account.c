@@ -95,7 +95,7 @@ request_add(PurpleAccount *account, const char *remote_user,
 		  const char *message)
 {
 	if (new_buddy_handler != Qnil) {
-    VALUE *args = g_new(VALUE, 3);
+    VALUE args[3];
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, account);
     args[1] = rb_str_new2(NULL == remote_user ? "" : remote_user);
     args[2] = rb_str_new2(NULL == message ? "" : message);
@@ -112,8 +112,6 @@ request_add(PurpleAccount *account, const char *remote_user,
 									     NULL, alias);
 	    }
     }
-    
-    g_free(args);
   }
 }
 
@@ -128,7 +126,7 @@ static void *request_authorize(PurpleAccount *account,
                         void *user_data)
 {
   if (new_buddy_handler != Qnil) {
-    VALUE *args = g_new(VALUE, 3);
+    VALUE args[3];
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, account);
     args[1] = rb_str_new2(NULL == remote_user ? "" : remote_user);
     args[2] = rb_str_new2(NULL == message ? "" : message);
@@ -140,8 +138,6 @@ static void *request_authorize(PurpleAccount *account,
     } else {
       deny_cb(user_data);
     }
-    
-    g_free(args);
   }
   
   return NULL;

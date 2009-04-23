@@ -167,7 +167,7 @@ void set_callback(VALUE* handler, const char* handler_name)
 void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const char *text)
 {
   if (Qnil != connection_error_handler) {
-    VALUE *args = g_new(VALUE, 3);
+    VALUE args[3];
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(gc));
     args[1] = INT2FIX(reason);
     args[2] = rb_str_new2(text);
@@ -179,8 +179,6 @@ void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const
     if (v != Qnil && v != Qfalse) {
       finch_connection_report_disconnect(gc, reason, text);
     }
-    
-    g_free(args);
   }
 }
 
@@ -197,7 +195,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
        */
       report_disconnect(purple_account_get_connection(account), PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message);
     } else {
-      VALUE *args = g_new(VALUE, 3);
+      VALUE args[3];
       args[0] = rb_str_new2(purple_account_get_username(account));
       args[1] = rb_str_new2(who);
       args[2] = rb_str_new2(message);
@@ -205,7 +203,6 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
         rb_raise(rb_eTypeError, "im_handler has unexpected type: %s", RSTRING(inspect_rb_obj(im_handler))->ptr);
       }
       rb_funcall2(im_handler, CALL, 3, args);
-      g_free(args);
     }
   }
 }
@@ -254,7 +251,7 @@ static void* notify_message(PurpleNotifyMsgType type,
 	const char *secondary)
 {
   if (notify_message_handler != Qnil) {
-    VALUE *args = g_new(VALUE, 4);
+    VALUE args[4];
     args[0] = INT2FIX(type);
     args[1] = rb_str_new2(NULL == title ? "" : title);
     args[2] = rb_str_new2(NULL == primary ? "" : primary);
@@ -263,7 +260,6 @@ static void* notify_message(PurpleNotifyMsgType type,
       rb_raise(rb_eTypeError, "notify_message_handler has unexpected type: %s", RSTRING(inspect_rb_obj(notify_message_handler))->ptr);
     }
     rb_funcall2(notify_message_handler, CALL, 4, args);
-    g_free(args);
   }
   
   return NULL;
@@ -279,7 +275,7 @@ static void* request_action(const char *title, const char *primary, const char *
                             va_list actions)
 {
   if (request_handler != Qnil) {
-	  VALUE *args = g_new(VALUE, 4);
+	  VALUE args[4];
     args[0] = rb_str_new2(NULL == title ? "" : title);
     args[1] = rb_str_new2(NULL == primary ? "" : primary);
     args[2] = rb_str_new2(NULL == secondary ? "" : secondary);
@@ -294,8 +290,6 @@ static void* request_action(const char *title, const char *primary, const char *
 	    GCallback ok_cb = va_arg(actions, GCallback);
       ((PurpleRequestActionCb)ok_cb)(user_data, default_action);
     }
-    
-    g_free(args);
   }
   
   return NULL;
@@ -419,13 +413,12 @@ static VALUE watch_new_buddy(VALUE self)
 
 static void signed_on(PurpleConnection* connection)
 {
-  VALUE *args = g_new(VALUE, 1);
+  VALUE args[1];
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
   if (rb_obj_class(signed_on_handler) != rb_cProc) {
     rb_raise(rb_eTypeError, "signed_on_handler has unexpected type: %s", RSTRING(inspect_rb_obj(signed_on_handler))->ptr);
   }
   rb_funcall2(signed_on_handler, CALL, 1, args);
-  g_free(args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
@@ -480,13 +473,12 @@ static void _read_socket_handler(gpointer notused, int socket, PurpleInputCondit
     purple_input_remove((guint)purple_fd);
     close(socket);
     
-    VALUE *args = g_new(VALUE, 1);
+    VALUE args[1];
     args[0] = (VALUE)str;
     if (rb_obj_class(ipc_handler) != rb_cProc) {
       rb_raise(rb_eTypeError, "ipc_handler has unexpected type: %s", RSTRING(inspect_rb_obj(ipc_handler))->ptr);
     }
     rb_funcall2(ipc_handler, CALL, 1, args);
-    g_free(args);
   }
 }
 
