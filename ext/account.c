@@ -49,6 +49,8 @@ extern ID CALL;
 extern VALUE cAccount;
 extern VALUE new_buddy_handler;
 
+extern VALUE inspect_rb_obj(VALUE obj);
+
 static char *
 make_info(PurpleAccount *account, PurpleConnection *gc, const char *remote_user,
           const char *id, const char *alias, const char *msg)
@@ -98,7 +100,7 @@ request_add(PurpleAccount *account, const char *remote_user,
     args[1] = rb_str_new2(NULL == remote_user ? "" : remote_user);
     args[2] = rb_str_new2(NULL == message ? "" : message);
     if (rb_obj_class(new_buddy_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "new_buddy_handler has unexpected type");
+      rb_raise(rb_eTypeError, "new_buddy_handler has unexpected type: %s", RSTRING(inspect_rb_obj(new_buddy_handler))->ptr);
     }
     VALUE v = rb_funcall2(new_buddy_handler, CALL, 3, args);
     

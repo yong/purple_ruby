@@ -16,7 +16,7 @@ require File.expand_path(File.join(File.dirname(__FILE__), '../ext/purple_ruby')
 
 class PurpleGWExample
   SERVER_IP = "127.0.0.1"
-  SERVER_PORT = 9876
+  SERVER_PORT = 9877
 
   def start configs
     PurpleRuby.init false #use 'true' if you want to see the debug messages
