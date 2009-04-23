@@ -48,8 +48,9 @@
 extern ID CALL;
 extern VALUE cAccount;
 extern VALUE new_buddy_handler;
+extern VALUE new_buddy_handler_backup;
 
-extern VALUE inspect_rb_obj(VALUE obj);
+extern VALUE check_callback(VALUE, const char*, VALUE);
 
 static char *
 make_info(PurpleAccount *account, PurpleConnection *gc, const char *remote_user,
@@ -99,9 +100,7 @@ request_add(PurpleAccount *account, const char *remote_user,
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, account);
     args[1] = rb_str_new2(NULL == remote_user ? "" : remote_user);
     args[2] = rb_str_new2(NULL == message ? "" : message);
-    if (rb_obj_class(new_buddy_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "new_buddy_handler has unexpected type: %s", RSTRING(inspect_rb_obj(new_buddy_handler))->ptr);
-    }
+    check_callback(new_buddy_handler, "new_buddy_handler", new_buddy_handler_backup);
     VALUE v = rb_funcall2(new_buddy_handler, CALL, 3, args);
     
     if (v != Qnil && v != Qfalse) {

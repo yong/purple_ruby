@@ -123,6 +123,11 @@ static VALUE cPurpleRuby;
 VALUE cAccount;
 const char* UI_ID = "purplegw";
 static GMainLoop *main_loop = NULL;
+static GHashTable* data_hash_table = NULL;
+static GHashTable* fd_hash_table = NULL;
+ID CALL;
+extern PurpleAccountUiOps account_ops;
+
 static VALUE im_handler = Qnil;
 static VALUE signed_on_handler = Qnil;
 static VALUE connection_error_handler = Qnil;
@@ -130,10 +135,15 @@ static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
 static VALUE ipc_handler = Qnil;
 VALUE new_buddy_handler = Qnil;
-static GHashTable* data_hash_table = NULL;
-static GHashTable* fd_hash_table = NULL;
-ID CALL;
-extern PurpleAccountUiOps account_ops;
+
+/*TODO those backup handlers are for debugging purpose, remove them once the bug is fixed*/
+static VALUE im_handler_backup = Qnil;
+static VALUE signed_on_handler_backup = Qnil;
+static VALUE connection_error_handler_backup = Qnil;
+static VALUE notify_message_handler_backup = Qnil;
+static VALUE request_handler_backup = Qnil;
+static VALUE ipc_handler_backup = Qnil;
+VALUE new_buddy_handler_backup = Qnil;
 
 extern void
 finch_connection_report_disconnect(PurpleConnection *gc, PurpleConnectionError reason,
@@ -146,7 +156,7 @@ VALUE inspect_rb_obj(VALUE obj)
   return rb_funcall(obj, rb_intern("inspect"), 0, 0);
 }
 
-void set_callback(VALUE* handler, const char* handler_name)
+void set_callback(VALUE* handler, const char* handler_name, VALUE* backup_handler)
 {
   if (!rb_block_given_p()) {
     rb_raise(rb_eArgError, "%s: no block", handler_name);
@@ -157,10 +167,20 @@ void set_callback(VALUE* handler, const char* handler_name)
   }
   
   *handler = rb_block_proc();
+  *backup_handler = *handler;
   
   if (rb_obj_class(*handler) != rb_cProc) {
-    rb_raise(rb_eTypeError, "%s got unexpected type: %s", handler_name, 
+    rb_raise(rb_eTypeError, "%s got unexpected value: %s", handler_name, 
        RSTRING(inspect_rb_obj(*handler))->ptr);
+  }
+}
+
+void check_callback(VALUE handler, const char* handler_name, VALUE backup_handler){
+  if (rb_obj_class(handler) != rb_cProc) {
+    rb_raise(rb_eTypeError, "%s has unexpected value: %s; %s",
+      handler_name,
+      RSTRING(inspect_rb_obj(handler))->ptr,
+      RSTRING(inspect_rb_obj(backup_handler))->ptr);
   }
 }
 
@@ -171,9 +191,7 @@ void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const
     args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(gc));
     args[1] = INT2FIX(reason);
     args[2] = rb_str_new2(text);
-    if (rb_obj_class(connection_error_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "connection_error_handler has unexpected type: %s", RSTRING(inspect_rb_obj(connection_error_handler))->ptr);
-    }
+    check_callback(connection_error_handler, "connection_error_handler", connection_error_handler_backup);
     VALUE v = rb_funcall2(connection_error_handler, CALL, 3, args);
     
     if (v != Qnil && v != Qfalse) {
@@ -199,9 +217,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
       args[0] = rb_str_new2(purple_account_get_username(account));
       args[1] = rb_str_new2(who);
       args[2] = rb_str_new2(message);
-      if (rb_obj_class(im_handler) != rb_cProc) {
-        rb_raise(rb_eTypeError, "im_handler has unexpected type: %s", RSTRING(inspect_rb_obj(im_handler))->ptr);
-      }
+      check_callback(im_handler, "im_handler", im_handler_backup);
       rb_funcall2(im_handler, CALL, 3, args);
     }
   }
@@ -256,9 +272,7 @@ static void* notify_message(PurpleNotifyMsgType type,
     args[1] = rb_str_new2(NULL == title ? "" : title);
     args[2] = rb_str_new2(NULL == primary ? "" : primary);
     args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
-    if (rb_obj_class(notify_message_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "notify_message_handler has unexpected type: %s", RSTRING(inspect_rb_obj(notify_message_handler))->ptr);
-    }
+    check_callback(notify_message_handler, "notify_message_handler", notify_message_handler_backup);
     rb_funcall2(notify_message_handler, CALL, 4, args);
   }
   
@@ -280,9 +294,7 @@ static void* request_action(const char *title, const char *primary, const char *
     args[1] = rb_str_new2(NULL == primary ? "" : primary);
     args[2] = rb_str_new2(NULL == secondary ? "" : secondary);
     args[3] = rb_str_new2(NULL == who ? "" : who);
-    if (rb_obj_class(request_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "request_handler has unexpected type: %s", RSTRING(inspect_rb_obj(request_handler))->ptr);
-    }
+    check_callback(request_handler, "request_handler", request_handler_backup);
     VALUE v = rb_funcall2(request_handler, CALL, 4, args);
 	  
 	  if (v != Qnil && v != Qfalse) {
@@ -386,28 +398,28 @@ static VALUE init(VALUE self, VALUE debug)
 static VALUE watch_incoming_im(VALUE self)
 {
   purple_conversations_set_ui_ops(&conv_uiops);
-  set_callback(&im_handler, "im_handler");
+  set_callback(&im_handler, "im_handler", &im_handler_backup);
   return im_handler;
 }
 
 static VALUE watch_notify_message(VALUE self)
 {
   purple_notify_set_ui_ops(&notify_ops);
-  set_callback(&notify_message_handler, "notify_message_handler");
+  set_callback(&notify_message_handler, "notify_message_handler", &notify_message_handler_backup);
   return notify_message_handler;
 }
 
 static VALUE watch_request(VALUE self)
 {
   purple_request_set_ui_ops(&request_ops);
-  set_callback(&request_handler, "request_handler");
+  set_callback(&request_handler, "request_handler", &request_handler_backup);
   return request_handler;
 }
 
 static VALUE watch_new_buddy(VALUE self)
 {
   purple_accounts_set_ui_ops(&account_ops);
-  set_callback(&new_buddy_handler, "new_buddy_handler");
+  set_callback(&new_buddy_handler, "new_buddy_handler", &new_buddy_handler_backup);
   return new_buddy_handler;
 }
 
@@ -415,15 +427,13 @@ static void signed_on(PurpleConnection* connection)
 {
   VALUE args[1];
   args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
-  if (rb_obj_class(signed_on_handler) != rb_cProc) {
-    rb_raise(rb_eTypeError, "signed_on_handler has unexpected type: %s", RSTRING(inspect_rb_obj(signed_on_handler))->ptr);
-  }
+  check_callback(signed_on_handler, "signed_on_handler", signed_on_handler_backup);
   rb_funcall2(signed_on_handler, CALL, 1, args);
 }
 
 static VALUE watch_signed_on_event(VALUE self)
 {
-  set_callback(&signed_on_handler, "signed_on_handler");
+  set_callback(&signed_on_handler, "signed_on_handler", &signed_on_handler_backup);
   int handle;
 	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
 				PURPLE_CALLBACK(signed_on), NULL);
@@ -435,7 +445,7 @@ static VALUE watch_connection_error(VALUE self)
   finch_connections_init();
   purple_connections_set_ui_ops(&connection_ops);
   
-  set_callback(&connection_error_handler, "connection_error_handler");
+  set_callback(&connection_error_handler, "connection_error_handler", &connection_error_handler_backup);
   
   /*int handle;
 	purple_signal_connect(purple_connections_get_handle(), "connection-error", &handle,
@@ -475,9 +485,7 @@ static void _read_socket_handler(gpointer notused, int socket, PurpleInputCondit
     
     VALUE args[1];
     args[0] = (VALUE)str;
-    if (rb_obj_class(ipc_handler) != rb_cProc) {
-      rb_raise(rb_eTypeError, "ipc_handler has unexpected type: %s", RSTRING(inspect_rb_obj(ipc_handler))->ptr);
-    }
+    check_callback(ipc_handler, "ipc_handler", ipc_handler_backup);
     rb_funcall2(ipc_handler, CALL, 1, args);
   }
 }
@@ -539,7 +547,7 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 		return Qnil;
 	}
 
-  set_callback(&ipc_handler, "ipc_handler");
+  set_callback(&ipc_handler, "ipc_handler", &ipc_handler_backup);
   
 	/* Open a watcher in the socket we have just opened */
 	purple_input_add(soc, PURPLE_INPUT_READ, _accept_socket_handler, NULL);
