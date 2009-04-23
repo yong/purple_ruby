@@ -25,6 +25,7 @@ class PurpleGWExample
     
     accounts = {}
     configs.each {|config|
+      puts "logging in #{config[:username]} (#{config[:protocol]})..."
       account = PurpleRuby.login(config[:protocol], config[:username], config[:password])
       accounts[config[:protocol]] = account
     }
