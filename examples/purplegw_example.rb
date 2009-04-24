@@ -31,10 +31,10 @@ class PurpleGWExample
     }
     
     #handle incoming im messages
-    PurpleRuby.watch_incoming_im do |receiver, sender, message|
+    PurpleRuby.watch_incoming_im do |acc, sender, message|
       sender = sender[0...sender.index('/')] if sender.index('/') #discard anything after '/'
       text = (Hpricot(message)).to_plain_text
-      puts "recv: #{receiver}, #{sender}, #{text}"
+      puts "recv: #{acc.username}, #{sender}, #{text}"
     end
     
     PurpleRuby.watch_signed_on_event do |acc| 

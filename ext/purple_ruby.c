@@ -209,7 +209,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
       report_disconnect(purple_account_get_connection(account), PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message);
     } else {
       VALUE args[3];
-      args[0] = rb_str_new2(purple_account_get_username(account));
+      args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, account);
       args[1] = rb_str_new2(who);
       args[2] = rb_str_new2(message);
       check_callback(im_handler, "im_handler");
