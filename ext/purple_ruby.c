@@ -195,6 +195,24 @@ void report_disconnect(PurpleConnection *gc, PurpleConnectionError reason, const
   }
 }
 
+static void* notify_message(PurpleNotifyMsgType type, 
+	const char *title,
+	const char *primary, 
+	const char *secondary)
+{
+  if (notify_message_handler != Qnil) {
+    VALUE args[4];
+    args[0] = INT2FIX(type);
+    args[1] = rb_str_new2(NULL == title ? "" : title);
+    args[2] = rb_str_new2(NULL == primary ? "" : primary);
+    args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
+    check_callback(notify_message_handler, "notify_message_handler");
+    rb_funcall2(notify_message_handler, CALL, 4, args);
+  }
+  
+  return NULL;
+}
+
 static void write_conv(PurpleConversation *conv, const char *who, const char *alias,
 			const char *message, PurpleMessageFlags flags, time_t mtime)
 {	
@@ -206,7 +224,7 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
        * In that case, libpurple will notify user with two regular im message.
        * The first message is an error message, the second one is the original message that failed to send.
        */
-      report_disconnect(purple_account_get_connection(account), PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message);
+      notify_message(PURPLE_CONNECTION_ERROR_NETWORK_ERROR, message, purple_account_get_protocol_id(account), who);
     } else {
       VALUE args[3];
       args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, account);
@@ -255,24 +273,6 @@ static PurpleConnectionUiOps connection_ops =
 	NULL,
 	NULL
 };
-
-static void* notify_message(PurpleNotifyMsgType type, 
-	const char *title,
-	const char *primary, 
-	const char *secondary)
-{
-  if (notify_message_handler != Qnil) {
-    VALUE args[4];
-    args[0] = INT2FIX(type);
-    args[1] = rb_str_new2(NULL == title ? "" : title);
-    args[2] = rb_str_new2(NULL == primary ? "" : primary);
-    args[3] = rb_str_new2(NULL == secondary ? "" : secondary);
-    check_callback(notify_message_handler, "notify_message_handler");
-    rb_funcall2(notify_message_handler, CALL, 4, args);
-  }
-  
-  return NULL;
-}
 
 static void* request_action(const char *title, const char *primary, const char *secondary,
                             int default_action,
