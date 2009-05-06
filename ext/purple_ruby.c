@@ -219,7 +219,11 @@ static void write_conv(PurpleConversation *conv, const char *who, const char *al
   if (im_handler != Qnil) {
     PurpleAccount* account = purple_conversation_get_account(conv);
     if (strcmp(purple_account_get_protocol_id(account), "prpl-msn") == 0 &&
-        strstr(message, "Message could not be sent") != NULL) {
+         (strstr(message, "Message could not be sent") != NULL ||
+          strstr(message, "Message was not sent") != NULL ||
+          strstr(message, "Message may have not been sent") != NULL
+         )
+        ) {
       /* I have seen error like 'msn: Connection error from Switchboard server'.
        * In that case, libpurple will notify user with two regular im message.
        * The first message is an error message, the second one is the original message that failed to send.
@@ -568,6 +572,20 @@ static VALUE main_loop_run(VALUE self)
 {
   main_loop = g_main_loop_new(NULL, FALSE);
   g_main_loop_run(main_loop);
+  
+#ifdef DEBUG_MEM_LEAK
+  printf("QUIT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  purple_core_quit();
+  if (im_handler == Qnil) rb_gc_unregister_address(&im_handler);
+  if (signed_on_handler == Qnil) rb_gc_unregister_address(&signed_on_handler);
+  if (connection_error_handler == Qnil) rb_gc_unregister_address(&connection_error_handler);
+  if (notify_message_handler == Qnil) rb_gc_unregister_address(&notify_message_handler);
+  if (request_handler == Qnil) rb_gc_unregister_address(&request_handler);
+  if (ipc_handler == Qnil) rb_gc_unregister_address(&ipc_handler);
+  if (new_buddy_handler == Qnil) rb_gc_unregister_address(&new_buddy_handler);
+  rb_gc_start();
+#endif
+  
   return Qnil;
 }
 
