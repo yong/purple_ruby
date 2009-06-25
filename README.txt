@@ -1,12 +1,12 @@
 == OVERVIEW
 
-purple_ruby is a ruby gem to write servers that send and recive IM messages. It uses libpurple (http://developer.pidgin.im/wiki/WhatIsLibpurple) and therforce supports all protocols that Pidgin/Adium supports (MSN/Gtalk/Yahoo/AIM/ICQ etc).
+purple_ruby is a ruby gem to write servers that send and recive IM messages. It uses libpurple ( http://developer.pidgin.im/wiki/WhatIsLibpurple ) and therforce supports all protocols that Pidgin/Adium supports (MSN/Gtalk/Yahoo/AIM/ICQ etc).
 
-For MSN, we recommend msn-pecan (http://code.google.com/p/msn-pecan/), which is more more stable than official MSN plugin.
+For MSN, we recommend msn-pecan ( http://code.google.com/p/msn-pecan/ ), which is more more stable than official MSN plugin.
 
 Please check examples/purplegw_example.rb for details. Bascially you just tell it what to do when an IM was received, and there is an embedded tcp 'proxy' which allows you send IM messages.
 
-Why not "ruburple"? I have used ruburple (http://rubyforge.org/projects/ruburple), but found it blocks a lot. libpurple needs to run its own event loop which interferes with ruby's green thread model. Ruburple's author has done lots of hard work to workaround the problem (http://rubyforge.org/pipermail/ruburple-development/2007-June/000005.html), but it does not work well.
+Why not "ruburple"? I have used ruburple ( http://rubyforge.org/projects/ruburple ), but found it blocks a lot. libpurple needs to run its own event loop which interferes with ruby's green thread model. Ruburple's author has done lots of hard work to workaround the problem ( http://rubyforge.org/pipermail/ruburple-development/2007-June/000005.html ), but it does not work well.
 
 == INSTALLATION
 
