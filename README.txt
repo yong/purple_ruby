@@ -18,7 +18,8 @@ sudo gem install yong-purple_ruby
 
 Redhat/Centos
 ---------------
-Follow instructions here: http://www.pidgin.im/download/centos_rhel/
+wget -O /etc/yum.repos.d/pidgin.repo http://rpm.pidgin.im/centos/pidgin.repo
+yum -y install glib2-devel libpurple-devel
 gem sources -a http://gems.github.com (you only have to do this once)
 sudo gem install yong-purple_ruby
 
