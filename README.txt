@@ -43,9 +43,9 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
 gem sources -a http://gems.github.com (you only have to do this once)
 sudo gem install yong-purple_ruby
 
-== License
+== Copyright
 
-GPL
+purple_ruby is Copyright (c) 2009 Xue Yong Zhi and Intridea, Inc., released under the GPL License.
 
 
 
