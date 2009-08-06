@@ -1,20 +1,7 @@
-require 'rubygems'
-require 'hoe'
 
 EXT = "ext/ruburple_ext.#{Config::CONFIG['DLEXT']}"
 
-Hoe.new('purple_ruby', '0.5.3') do |p|
-  p.author = 'yong'
-  p.email = 'yong@intridea.com'
-  p.url = 'http://www.intridea.com'
-  p.summary = 'A ruby gem to write server that sends and recives IM messages'
-  p.description = 'A ruby gem to write server that sends and recives IM messages'
-  
-  p.spec_extras[:extensions] = "ext/extconf.rb"
-  p.clean_globs << EXT << "ext/*.o" << "ext/Makefile"
-end
-
-task :test => EXT
+task :default => EXT
 
 file EXT => ["ext/extconf.rb", "ext/purple_ruby.c"] do
   Dir.chdir "ext" do
