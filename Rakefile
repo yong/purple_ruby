@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'hoe'
 
-EXT = "ext/ruburple_ext.#{Hoe::DLEXT}"
+EXT = "ext/ruburple_ext.#{Config::CONFIG['DLEXT']}"
 
 Hoe.new('purple_ruby', '0.5.3') do |p|
   p.author = 'yong'
