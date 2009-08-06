@@ -6,8 +6,8 @@
 #
 #Send im:
 #$ irb
-#irb(main):001:0> require 'lib/purplegw_ruby'
-#irb(main):007:0> PurpleGW.deliver 'prpl-jabber', 'friend@gmail.com', 'hello worlds!'
+#irb(main):001:0> require 'examples/purplegw_example'
+#irb(main):007:0> PurpleGWExample.deliver 'prpl-jabber', 'friend@gmail.com', 'hello worlds!'
 #
 
 require 'hpricot'
