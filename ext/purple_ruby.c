@@ -742,6 +742,14 @@ static VALUE has_buddy(VALUE self, VALUE buddy)
   }
 }
 
+static VALUE acc_delete(VALUE self)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  purple_accounts_delete(account);
+  return Qnil;
+}
+
 void Init_purple_ruby() 
 {
   CALL = rb_intern("call");
@@ -775,4 +783,5 @@ void Init_purple_ruby()
   rb_define_method(cAccount, "add_buddy", add_buddy, 1);
   rb_define_method(cAccount, "remove_buddy", remove_buddy, 1);
   rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
+  rb_define_method(cAccount, "delete", acc_delete, 0);
 }
