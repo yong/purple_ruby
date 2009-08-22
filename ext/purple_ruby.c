@@ -134,6 +134,8 @@ static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
 static VALUE ipc_handler = Qnil;
+static VALUE timer_handler = Qnil;
+guint timer_timeout = 0;
 VALUE new_buddy_handler = Qnil;
 
 extern void
@@ -554,6 +556,24 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 	return port;
 }
 
+static gboolean
+do_timeout(gpointer data)
+{
+	VALUE handler = data;
+	check_callback(handler, "timer_handler");
+	VALUE v = rb_funcall(handler, CALL, 0, 0);
+	return (v == Qtrue);
+}
+
+static VALUE watch_timer(VALUE self, VALUE delay)
+{
+	set_callback(&timer_handler, "timer_handler");
+	if (timer_timeout != 0)
+		g_source_remove(timer_timeout);
+	timer_timeout = g_timeout_add(delay, do_timeout, timer_handler);
+	return delay;
+}
+
 static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
 {
   PurpleAccount* account = purple_account_new(RSTRING(username)->ptr, RSTRING(protocol)->ptr);
@@ -583,6 +603,8 @@ static VALUE main_loop_run(VALUE self)
   if (notify_message_handler == Qnil) rb_gc_unregister_address(&notify_message_handler);
   if (request_handler == Qnil) rb_gc_unregister_address(&request_handler);
   if (ipc_handler == Qnil) rb_gc_unregister_address(&ipc_handler);
+  if (timer_timeout != 0) g_source_remove(timer_timeout);
+  if (timer_handler == Qnil) rb_gc_unregister_address(&timer_handler);
   if (new_buddy_handler == Qnil) rb_gc_unregister_address(&new_buddy_handler);
   rb_gc_start();
 #endif
@@ -734,6 +756,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_request", watch_request, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_new_buddy", watch_new_buddy, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
+  rb_define_singleton_method(cPurpleRuby, "watch_timer", watch_timer, 1);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);
   rb_define_singleton_method(cPurpleRuby, "main_loop_stop", main_loop_stop, 0);
