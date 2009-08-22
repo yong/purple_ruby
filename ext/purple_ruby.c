@@ -561,6 +561,7 @@ static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
     rb_raise(rb_eRuntimeError, "No able to create account: %s", RSTRING(protocol)->ptr);
   }
   purple_account_set_password(account, RSTRING(password)->ptr);
+  purple_account_set_remember_password(account, TRUE);
   purple_account_set_enabled(account, UI_ID, TRUE);
   PurpleSavedStatus *status = purple_savedstatus_new(NULL, PURPLE_STATUS_AVAILABLE);
 	purple_savedstatus_activate(status);
