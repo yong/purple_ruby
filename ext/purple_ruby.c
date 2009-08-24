@@ -134,6 +134,8 @@ static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
 static VALUE ipc_handler = Qnil;
+static VALUE timer_handler = Qnil;
+guint timer_timeout = 0;
 VALUE new_buddy_handler = Qnil;
 
 extern void
@@ -364,7 +366,7 @@ static void sighandler(int sig)
 	}
 }
 
-static VALUE init(VALUE self, VALUE debug)
+static VALUE init(VALUE self, VALUE debug, VALUE path)
 {
   signal(SIGCHLD, SIG_IGN);
   signal(SIGPIPE, SIG_IGN);
@@ -374,6 +376,11 @@ static VALUE init(VALUE self, VALUE debug)
   fd_hash_table = g_hash_table_new(NULL, NULL);
 
   purple_debug_set_enabled((debug == Qnil || debug == Qfalse) ? FALSE : TRUE);
+
+  if (path != Qnil) {
+		purple_util_set_user_dir(RSTRING(path)->ptr);
+	}
+
   purple_core_set_ui_ops(&core_uiops);
   purple_eventloop_set_ui_ops(&glib_eventloops);
   
@@ -554,6 +561,24 @@ static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 	return port;
 }
 
+static gboolean
+do_timeout(gpointer data)
+{
+	VALUE handler = data;
+	check_callback(handler, "timer_handler");
+	VALUE v = rb_funcall(handler, CALL, 0, 0);
+	return (v == Qtrue);
+}
+
+static VALUE watch_timer(VALUE self, VALUE delay)
+{
+	set_callback(&timer_handler, "timer_handler");
+	if (timer_timeout != 0)
+		g_source_remove(timer_timeout);
+	timer_timeout = g_timeout_add(delay, do_timeout, timer_handler);
+	return delay;
+}
+
 static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
 {
   PurpleAccount* account = purple_account_new(RSTRING(username)->ptr, RSTRING(protocol)->ptr);
@@ -561,6 +586,7 @@ static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
     rb_raise(rb_eRuntimeError, "No able to create account: %s", RSTRING(protocol)->ptr);
   }
   purple_account_set_password(account, RSTRING(password)->ptr);
+  purple_account_set_remember_password(account, TRUE);
   purple_account_set_enabled(account, UI_ID, TRUE);
   PurpleSavedStatus *status = purple_savedstatus_new(NULL, PURPLE_STATUS_AVAILABLE);
 	purple_savedstatus_activate(status);
@@ -582,6 +608,8 @@ static VALUE main_loop_run(VALUE self)
   if (notify_message_handler == Qnil) rb_gc_unregister_address(&notify_message_handler);
   if (request_handler == Qnil) rb_gc_unregister_address(&request_handler);
   if (ipc_handler == Qnil) rb_gc_unregister_address(&ipc_handler);
+  if (timer_timeout != 0) g_source_remove(timer_timeout);
+  if (timer_handler == Qnil) rb_gc_unregister_address(&timer_handler);
   if (new_buddy_handler == Qnil) rb_gc_unregister_address(&new_buddy_handler);
   rb_gc_start();
 #endif
@@ -719,12 +747,20 @@ static VALUE has_buddy(VALUE self, VALUE buddy)
   }
 }
 
+static VALUE acc_delete(VALUE self)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  purple_accounts_delete(account);
+  return Qnil;
+}
+
 void Init_purple_ruby() 
 {
   CALL = rb_intern("call");
 
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
-  rb_define_singleton_method(cPurpleRuby, "init", init, 1);
+  rb_define_singleton_method(cPurpleRuby, "init", init, 2);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
@@ -733,6 +769,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "watch_request", watch_request, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_new_buddy", watch_new_buddy, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_ipc", watch_incoming_ipc, 2);
+  rb_define_singleton_method(cPurpleRuby, "watch_timer", watch_timer, 1);
   rb_define_singleton_method(cPurpleRuby, "login", login, 3);
   rb_define_singleton_method(cPurpleRuby, "main_loop_run", main_loop_run, 0);
   rb_define_singleton_method(cPurpleRuby, "main_loop_stop", main_loop_stop, 0);
@@ -751,4 +788,5 @@ void Init_purple_ruby()
   rb_define_method(cAccount, "add_buddy", add_buddy, 1);
   rb_define_method(cAccount, "remove_buddy", remove_buddy, 1);
   rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
+  rb_define_method(cAccount, "delete", acc_delete, 0);
 }
