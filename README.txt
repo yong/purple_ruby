@@ -46,7 +46,7 @@ sudo gem install yong-purple_ruby
 
 == Copyright
 
-purple_ruby is Copyright (c) 2009 Xue Yong Zhi and Intridea, Inc., released under the GPL License.
+purple_ruby is Copyright (c) 2009 Xue Yong Zhi and Intridea, Inc. ( http://intridea.com ), released under the GPL License.
 
 
 
