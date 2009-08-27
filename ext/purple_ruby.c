@@ -527,12 +527,19 @@ static void _accept_socket_handler(gpointer notused, int server_socket, PurpleIn
 static VALUE watch_incoming_ipc(VALUE self, VALUE serverip, VALUE port)
 {
 	struct sockaddr_in my_addr;
-  int soc;
+	int soc;
+	int on = 1;
 
 	/* Open a listening socket for incoming conversations */
 	if ((soc = socket(PF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		rb_raise(rb_eRuntimeError, "Cannot open socket: %s\n", g_strerror(errno));
+		return Qnil;
+	}
+
+	if (setsockopt(soc, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+	{
+		rb_raise(rb_eRuntimeError, "SO_REUSEADDR failed: %s\n", g_strerror(errno));
 		return Qnil;
 	}
 
