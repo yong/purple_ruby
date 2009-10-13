@@ -767,7 +767,7 @@ void Init_purple_ruby()
   CALL = rb_intern("call");
 
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
-  rb_define_singleton_method(cPurpleRuby, "init", init, 2);
+  rb_define_singleton_method(cPurpleRuby, "init", init, 1);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
