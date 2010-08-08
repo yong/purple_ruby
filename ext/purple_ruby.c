@@ -361,23 +361,31 @@ static void sighandler(int sig)
 {
   switch (sig) {
   case SIGINT:
+  case SIGQUIT:
+  case SIGTERM:
 		g_main_loop_quit(main_loop);
 		break;
 	}
 }
 
-static VALUE init(VALUE self, VALUE debug, VALUE path)
+static VALUE init(int argc, VALUE* argv, VALUE self)
 {
+  VALUE debug, path;
+  rb_scan_args(argc, argv, "02", &debug, &path);
+
   signal(SIGCHLD, SIG_IGN);
   signal(SIGPIPE, SIG_IGN);
   signal(SIGINT, sighandler);
-  
+  signal(SIGQUIT, sighandler);
+  signal(SIGTERM, sighandler);
+
   data_hash_table = g_hash_table_new(NULL, NULL);
   fd_hash_table = g_hash_table_new(NULL, NULL);
 
-  purple_debug_set_enabled((debug == Qnil || debug == Qfalse) ? FALSE : TRUE);
+  purple_debug_set_enabled((NIL_P(debug) || debug == Qfalse) ? FALSE : TRUE);
 
-  if (path != Qnil) {
+  if (!NIL_P(path)) {
+    Check_Type(path, T_STRING);   
 		purple_util_set_user_dir(RSTRING(path)->ptr);
 	}
 
@@ -767,7 +775,7 @@ void Init_purple_ruby()
   CALL = rb_intern("call");
 
   cPurpleRuby = rb_define_class("PurpleRuby", rb_cObject);
-  rb_define_singleton_method(cPurpleRuby, "init", init, 1);
+  rb_define_singleton_method(cPurpleRuby, "init", init, -1);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
