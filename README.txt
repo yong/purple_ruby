@@ -28,10 +28,10 @@ OSX:
 sudo port install pidgin
 sudo gem install purple_ruby
 
+== Notes
+
+If you have problems login into gtalk with the error "NotImplementedError: method `respond_to?' called on terminated object (0x1018c9af0)", it's highly possible that the library is conflicted with libxml-ruby gem. Try to upgrade libxml2 to the latest version and recompile libxml-ruby will fix the problem
+
 == Copyright
 
 purple_ruby is Copyright (c) 2009-2010 Xue Yong Zhi and Intridea, Inc. ( http://intridea.com ), released under the GPL License.
-
-
-
-
