@@ -1,2 +1,7 @@
-== 0.1.0
- 
+== 0.6.4
+
+Add a noted problem on OSX.
+
+== 0.6.3
+
+Fix the segment fault on PurpleRuby.init: variable initialize parameters 
