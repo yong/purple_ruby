@@ -1,13 +1,13 @@
 
 Gem::Specification.new do |s|
   s.name = %q{purple_ruby}
-  s.version = "0.6.4"
+  s.version = "0.6.5"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["yong"]
   s.date = %q{2009-04-01}
   s.description = %q{A ruby gem to write server that sends and recives IM messages}
-  s.email = %q{yong@intridea.com}
+  s.email = %q{yong@intridea.com dingding@intridea.com}
   s.extensions = ["ext/extconf.rb"]
   s.extra_rdoc_files = ["Manifest.txt", "History.txt", "README.txt"]
   s.files = ["ext/extconf.rb", "ext/purple_ruby.c", "ext/reconnect.c", "ext/account.c", "examples/purplegw_example.rb", "Manifest.txt", "History.txt", "README.txt", "Rakefile"]
