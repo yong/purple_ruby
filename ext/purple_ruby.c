@@ -137,6 +137,7 @@ extern PurpleAccountUiOps account_ops;
 
 static VALUE im_handler = Qnil;
 static VALUE signed_on_handler = Qnil;
+static VALUE signed_off_handler = Qnil;
 static VALUE connection_error_handler = Qnil;
 static VALUE notify_message_handler = Qnil;
 static VALUE request_handler = Qnil;
@@ -452,6 +453,14 @@ static void signed_on(PurpleConnection* connection)
   rb_funcall2(signed_on_handler, CALL, 1, args);
 }
 
+static void signed_off(PurpleConnection* connection)
+{
+  VALUE args[1];
+  args[0] = Data_Wrap_Struct(cAccount, NULL, NULL, purple_connection_get_account(connection));
+  check_callback(signed_off_handler, "signed_off_handler");
+  rb_funcall2(signed_off_handler, CALL, 1, args);
+}
+
 static VALUE watch_signed_on_event(VALUE self)
 {
   set_callback(&signed_on_handler, "signed_on_handler");
@@ -459,6 +468,15 @@ static VALUE watch_signed_on_event(VALUE self)
 	purple_signal_connect(purple_connections_get_handle(), "signed-on", &handle,
 				PURPLE_CALLBACK(signed_on), NULL);
   return signed_on_handler;
+}
+
+static  VALUE watch_signed_off_event(VALUE self)
+{
+  set_callback(&signed_off_handler, "signed_off_handler");
+  int handle;
+	purple_signal_connect(purple_connections_get_handle(), "signed-off", &handle,
+				PURPLE_CALLBACK(signed_off), NULL);
+  return signed_off_handler;
 }
 
 static VALUE watch_connection_error(VALUE self)
@@ -616,6 +634,15 @@ static VALUE login(VALUE self, VALUE protocol, VALUE username, VALUE password)
 	return Data_Wrap_Struct(cAccount, NULL, NULL, account);
 }
 
+static VALUE logout(VALUE self)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  purple_account_disconnect(account);
+
+  return Qnil;
+}
+
 static VALUE main_loop_run(VALUE self)
 {
   main_loop = g_main_loop_new(NULL, FALSE);
@@ -626,6 +653,7 @@ static VALUE main_loop_run(VALUE self)
   purple_core_quit();
   if (im_handler == Qnil) rb_gc_unregister_address(&im_handler);
   if (signed_on_handler == Qnil) rb_gc_unregister_address(&signed_on_handler);
+  if (signed_off_handler == Qnil) rb_gc_unregister_address(&signed_off_handler);
   if (connection_error_handler == Qnil) rb_gc_unregister_address(&connection_error_handler);
   if (notify_message_handler == Qnil) rb_gc_unregister_address(&notify_message_handler);
   if (request_handler == Qnil) rb_gc_unregister_address(&request_handler);
@@ -785,6 +813,7 @@ void Init_purple_ruby()
   rb_define_singleton_method(cPurpleRuby, "init", init, -1);
   rb_define_singleton_method(cPurpleRuby, "list_protocols", list_protocols, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_signed_on_event", watch_signed_on_event, 0);
+  rb_define_singleton_method(cPurpleRuby, "watch_signed_off_event", watch_signed_off_event, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_connection_error", watch_connection_error, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_incoming_im", watch_incoming_im, 0);
   rb_define_singleton_method(cPurpleRuby, "watch_notify_message", watch_notify_message, 0);
@@ -811,4 +840,5 @@ void Init_purple_ruby()
   rb_define_method(cAccount, "remove_buddy", remove_buddy, 1);
   rb_define_method(cAccount, "has_buddy?", has_buddy, 1);
   rb_define_method(cAccount, "delete", acc_delete, 0);
+  rb_define_method(cAccount, "logout", logout, 0);
 }
