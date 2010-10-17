@@ -1,6 +1,7 @@
 == 0.6.7
 
-Constant PURPLE_CONNECTION_ERROR
+* Constant PURPLE_CONNECTION_ERROR
+* Add Account#commond_send: the same interface with send_im but send through conversation
 
 == 0.6.6
 

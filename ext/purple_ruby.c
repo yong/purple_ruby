@@ -687,6 +687,29 @@ static VALUE send_im(VALUE self, VALUE name, VALUE message)
   }
 }
 
+static VALUE common_send(VALUE self, VALUE name, VALUE message)
+{
+  PurpleAccount *account;
+  Data_Get_Struct(self, PurpleAccount, account);
+  
+  if (purple_account_is_connected(account)) {
+     PurpleBuddy* buddy = purple_find_buddy(account, RSTRING_PTR(name));
+     if (buddy != NULL) {
+       PurpleConversation *conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_IM, RSTRING_PTR(name), account);
+       if (conv == NULL) {
+         conv = purple_conversation_new(PURPLE_CONV_TYPE_IM,
+                                        buddy->account, buddy->name);
+       }
+       purple_conv_im_send(PURPLE_CONV_IM(conv), RSTRING_PTR(message));
+       return INT2FIX(0);
+     } else {
+       return Qnil;
+     }
+  } else {
+    return Qnil;    
+  }
+}
+
 static VALUE username(VALUE self)
 {
   PurpleAccount *account;
@@ -851,6 +874,7 @@ void Init_purple_ruby()
   
   cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);
+  rb_define_method(cAccount, "common_send", common_send, 2);
   rb_define_method(cAccount, "username", username, 0);
   rb_define_method(cAccount, "protocol_id", protocol_id, 0);
   rb_define_method(cAccount, "protocol_name", protocol_name, 0);
