@@ -127,6 +127,7 @@ static PurpleEventLoopUiOps glib_eventloops =
 };
 
 static VALUE cPurpleRuby;
+static VALUE cConnectionError;
 VALUE cAccount;
 const char* UI_ID = "purplegw";
 static GMainLoop *main_loop = NULL;
@@ -828,6 +829,25 @@ void Init_purple_ruby()
   rb_define_const(cPurpleRuby, "NOTIFY_MSG_ERROR", INT2NUM(PURPLE_NOTIFY_MSG_ERROR));
   rb_define_const(cPurpleRuby, "NOTIFY_MSG_WARNING", INT2NUM(PURPLE_NOTIFY_MSG_WARNING));
   rb_define_const(cPurpleRuby, "NOTIFY_MSG_INFO", INT2NUM(PURPLE_NOTIFY_MSG_INFO));
+  
+  cConnectionError = rb_define_class_under(cPurpleRuby, "ConnectionError", rb_cObject);
+  rb_define_const(cConnectionError, "NETWORK_ERROR", INT2NUM(PURPLE_CONNECTION_ERROR_NETWORK_ERROR));
+  rb_define_const(cConnectionError, "INVALID_USERNAME", INT2NUM(PURPLE_CONNECTION_ERROR_INVALID_USERNAME));
+  rb_define_const(cConnectionError, "AUTHENTICATION_FAILED", INT2NUM(PURPLE_CONNECTION_ERROR_AUTHENTICATION_FAILED));
+  rb_define_const(cConnectionError, "AUTHENTICATION_IMPOSSIBLE", INT2NUM(PURPLE_CONNECTION_ERROR_AUTHENTICATION_IMPOSSIBLE));
+  rb_define_const(cConnectionError, "NO_SSL_SUPPORT", INT2NUM(PURPLE_CONNECTION_ERROR_NO_SSL_SUPPORT));
+  rb_define_const(cConnectionError, "ENCRYPTION_ERROR", INT2NUM(PURPLE_CONNECTION_ERROR_ENCRYPTION_ERROR));
+  rb_define_const(cConnectionError, "NAME_IN_USE", INT2NUM(PURPLE_CONNECTION_ERROR_NAME_IN_USE));
+  rb_define_const(cConnectionError, "INVALID_SETTINGS", INT2NUM(PURPLE_CONNECTION_ERROR_INVALID_SETTINGS));
+  rb_define_const(cConnectionError, "CERT_NOT_PROVIDED", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_NOT_PROVIDED));
+  rb_define_const(cConnectionError, "CERT_UNTRUSTED", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_UNTRUSTED));
+  rb_define_const(cConnectionError, "CERT_EXPIRED", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_EXPIRED));
+  rb_define_const(cConnectionError, "CERT_NOT_ACTIVATED", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_NOT_ACTIVATED));
+  rb_define_const(cConnectionError, "CERT_HOSTNAME_MISMATCH", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_HOSTNAME_MISMATCH));  
+  rb_define_const(cConnectionError, "CERT_FINGERPRINT_MISMATCH", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_FINGERPRINT_MISMATCH));
+  rb_define_const(cConnectionError, "CERT_SELF_SIGNED", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_SELF_SIGNED));
+  rb_define_const(cConnectionError, "CERT_OTHER_ERROR", INT2NUM(PURPLE_CONNECTION_ERROR_CERT_OTHER_ERROR));
+  rb_define_const(cConnectionError, "OTHER_ERROR", INT2NUM(PURPLE_CONNECTION_ERROR_OTHER_ERROR));  
   
   cAccount = rb_define_class_under(cPurpleRuby, "Account", rb_cObject);
   rb_define_method(cAccount, "send_im", send_im, 2);

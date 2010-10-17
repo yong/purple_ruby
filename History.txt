@@ -1,3 +1,7 @@
+== 0.6.7
+
+Constant PURPLE_CONNECTION_ERROR
+
 == 0.6.6
 
 Logout
